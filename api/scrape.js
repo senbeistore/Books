@@ -95,37 +95,41 @@ function isTaiwanISBN(item) {
 }
 
 async function searchGoogleBooks(q) {
-  if (!GOOGLE_BOOKS_KEY) return [];
+  if (!GOOGLE_BOOKS_KEY) return { items: [], reason: 'no-key' };
   try {
     const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent('intitle:' + q)
       + '&langRestrict=zh&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
-    const r = await fetchWithTimeout(u, 5000);
-    if (!r.ok) return []; // 429（配額用盡）、400 等一律安靜降級，外層改用金石堂
+    // 金鑰限制了只接受這個網站的請求，伺服器對伺服器呼叫不會自動帶 Referer，要手動補上
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    const r = await fetch(u, {
+      headers: { Referer: 'https://books-senbei.vercel.app/' },
+      signal: ctrl.signal
+    }).finally(() => clearTimeout(t));
+    if (!r.ok) return { items: [], reason: 'http-' + r.status };
     const data = await r.json();
-    if (!data.items) return [];
+    if (!data.items) return { items: [], reason: 'no-items', totalItems: data.totalItems || 0 };
 
-    // 只留台灣版（ISBN 978957／978986 開頭），避免混入簡體或其他地區版本
     const seen = new Set(), items = [];
     for (const v of data.items.filter(isTaiwanISBN)) {
-      const t = v.volumeInfo && v.volumeInfo.title;
-      if (!t || seen.has(t)) continue;
-      seen.add(t);
-      items.push({ title: t, url: '' }); // 不給網址，前端會用書名自動產生誠品搜尋連結
+      const ti = v.volumeInfo && v.volumeInfo.title;
+      if (!ti || seen.has(ti)) continue;
+      seen.add(ti);
+      items.push({ title: ti, url: '' });
     }
-    return items;
+    return { items, reason: items.length ? 'ok' : 'no-tw-isbn', totalItems: data.totalItems };
   } catch (e) {
-    return [];
+    return { items: [], reason: 'error:' + String(e).slice(0, 60) };
   }
 }
 
 async function searchBooks(q, res) {
-  const gItems = await searchGoogleBooks(q);
-  if (gItems.length > 0) {
-    return res.status(200).json({ v: 7, source: 'google', found: true, items: gItems.slice(0, 6) });
+  const g = await searchGoogleBooks(q);
+  if (g.items.length > 0) {
+    return res.status(200).json({ v: 8, source: 'google', found: true, items: g.items.slice(0, 6) });
   }
-  // Google 圖書查不到（可能是台灣本土出版社涵蓋不到，或配額用盡）→ 退回金石堂搜尋
   const kItems = await searchKingstone(q);
-  return res.status(200).json({ v: 7, source: 'kingstone', found: kItems.length > 0, items: kItems });
+  return res.status(200).json({ v: 8, source: 'kingstone', googleReason: g.reason, found: kItems.length > 0, items: kItems });
 }
 
 async function scrapeTitle(url, res) {
