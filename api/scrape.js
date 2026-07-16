@@ -21,18 +21,36 @@ async function searchBooks(q, res) {
     // （頁面頂端「熱門關鍵字」帶的是 ?lid=home_keyword 或無參數，會被排除）
     const re = /href="[^"]*\/basic\/(\d+)\/\?lid=search[^"]*"[^>]*>([^<]{2,150}?)</gi;
     let m;
-    while ((m = re.exec(html)) !== null && items.length < 6) {
+    // 抓完整頁（金石堂一頁可到 40+ 筆），排序後才取前幾筆
+    while ((m = re.exec(html)) !== null && items.length < 60) {
       const id = m[1];
       let t = decode(m[2]);
       if (!t || t.length < 2 || seen.has(id)) continue;
-      if (/^【電子書】/.test(t)) continue;        // 排掉電子書
-      if (/^(買整套|試閱|下次再買|加入購物車|貨到通知)$/.test(t)) continue; // 排掉按鈕文字
+      // 金石堂商品編號：20=實體書、28=電子書、30=文具玩具周邊。只要書。
+      if (!/^20/.test(id)) continue;
+      if (/^【電子書】/.test(t)) continue;
+      if (/^(買整套|試閱|下次再買|加入購物車|貨到通知)$/.test(t)) continue;
       seen.add(id);
       items.push({ title: t, url: 'https://www.kingstone.com.tw/basic/' + id + '/' });
     }
-    return res.status(200).json({ found: items.length > 0, items });
+
+    // 相關度排序：完全相同 > 開頭符合 > 只是包含；同級書名短的優先（越接近原版）
+    const ql = q.trim().toLowerCase();
+    const score = (t) => {
+      const tl = t.toLowerCase();
+      if (tl === ql) return 0;
+      if (tl.startsWith(ql)) return 1;
+      if (tl.includes(ql)) return 2;
+      return 3;
+    };
+    items.sort((a, b) => {
+      const d = score(a.title) - score(b.title);
+      return d !== 0 ? d : a.title.length - b.title.length;
+    });
+
+    return res.status(200).json({ v: 4, found: items.length > 0, items: items.slice(0, 6) });
   } catch (e) {
-    return res.status(200).json({ found: false, items: [] });
+    return res.status(200).json({ v: 4, found: false, items: [] });
   }
 }
 
