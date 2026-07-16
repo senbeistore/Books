@@ -24,13 +24,11 @@ function isTaiwanISBN(item) {
 }
 
 async function callGoogleBooksOnce(q) {
-  // 不用 intitle: 前綴。實測證據：v12（純文字查詢）成功回傳，v13（加上 intitle:）立刻 503，
-  // 同一支金鑰、同一本書、同一時間，唯一差別就是這個前綴 → intitle: 就是 503 的成因。
-  // 改用純文字查詢確保能通，混進來的不相關結果交給下面的相關度過濾處理。
+  // 不用 intitle: 前綴（純文字查詢，混進來的不相關結果交給下面的相關度過濾處理）
   const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q)
     + '&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 5000);
+  const t = setTimeout(() => ctrl.abort(), 2500);
   try {
     return await fetch(u, {
       headers: { Referer: 'https://books-senbei.vercel.app/' },
@@ -43,17 +41,31 @@ async function callGoogleBooksOnce(q) {
 
 async function searchGoogleBooks(q) {
   if (!GOOGLE_BOOKS_KEY) return { items: [], reason: 'no-key' };
-  try {
-    let r = await callGoogleBooksOnce(q);
-    if (r.status === 503) {
-      // Google 圖書後端偶爾短暫不穩，稍等後重試一次再放棄
-      await new Promise(res => setTimeout(res, 800));
+
+  // Google 圖書 API 會隨機吐 503（Google 自己的 issue tracker 有這筆已知問題），
+  // 同一個查詢有時成功有時失敗，跟查詢寫法無關 → 只能靠重試硬碰。
+  // 每次逾時 2.5 秒、最多試 3 次、間隔遞增，總計控制在 Vercel 的 10 秒上限內。
+  let r = null, lastStatus = 0, lastBody = '';
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      if (attempt > 1) await new Promise(res => setTimeout(res, attempt === 2 ? 300 : 700));
       r = await callGoogleBooksOnce(q);
+      if (r.ok) break;
+      lastStatus = r.status;
+      lastBody = await r.text();
+      // 只有伺服器端的暫時性錯誤值得重試；403（金鑰問題）之類重試也沒用
+      if (![500, 502, 503, 504].includes(r.status)) break;
+      r = null;
+    } catch (e) {
+      lastBody = String(e);
+      r = null;
     }
-    if (!r.ok) {
-      const body = await r.text();
-      return { items: [], reason: 'http-' + r.status, detail: body.slice(0, 200) };
-    }
+  }
+  if (!r || !r.ok) {
+    return { items: [], reason: lastStatus ? 'http-' + lastStatus : 'timeout', detail: lastBody.slice(0, 150) };
+  }
+
+  try {
     const data = await r.json();
     if (!data.items) return { items: [], reason: 'no-items', totalItems: data.totalItems || 0 };
 
@@ -62,12 +74,17 @@ async function searchGoogleBooks(q) {
     const isEnglishQuery = /^[a-zA-Z0-9\s\-'!?.,:&]+$/.test(ql);
 
     // 相關度把關：中文用「字元重疊」，英文用「單詞重疊」
-    // （英文若用字元比對會太寬鬆，caterpillar 跟 capital 都會被當成相關）
+    // （英文若用字元比對會太寬鬆；純用單詞比對也不夠，因為 the/and/for 這類
+    // 高頻虛詞幾乎出現在所有書名裡，等於沒有過濾效果，必須先排除掉）
+    const EN_STOPWORDS = new Set(['the','and','for','with','from','this','that','book','books',
+      'of','in','on','at','as','is','are','was','were','to','it','its','an','a','by','or','be']);
     const relevant = (t) => {
       const strip = (s) => s.replace(/[！!？?。，,、：:（）()「」『』【】\s\-–—_]/g, '');
       if (isEnglishQuery) {
-        const words = ql.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-        if (!words.length) return true;
+        const words = ql.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !EN_STOPWORDS.has(w));
+        // 整句都是虛詞（例如只搜了 "the" 這種單字）→ 沒有可比對的依據，
+        // 寧可查無結果讓客人改用貼網址，也不要放行明顯不相關的書
+        if (!words.length) return false;
         const tl = t.toLowerCase();
         return words.filter(w => tl.includes(w)).length / words.length >= 0.6;
       }
@@ -109,7 +126,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 16, source: 'google',
+    v: 17, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
