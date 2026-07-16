@@ -43,7 +43,7 @@ async function isBookCategory(url) {
   }
 }
 
-async function searchBooks(q, res) {
+async function searchKingstone(q) {
   try {
     const u = 'https://www.kingstone.com.tw/search/key/' + encodeURIComponent(q);
     const r = await fetchWithTimeout(u, 6000);
@@ -64,7 +64,6 @@ async function searchBooks(q, res) {
       raw.push({ title: t, url: 'https://www.kingstone.com.tw/basic/' + id + '/' });
     }
 
-    // 依書名相關度排序（完全符合 > 開頭符合 > 包含），同級書名短的優先
     const ql = q.trim().toLowerCase();
     const score = (t) => {
       const tl = t.toLowerCase();
@@ -78,15 +77,55 @@ async function searchBooks(q, res) {
       return d !== 0 ? d : a.title.length - b.title.length;
     });
 
-    // 取排序後前面較相關的候選，逐一驗證金石堂自己標的分類（平行請求，避免逾時）
     const candidates = raw.slice(0, 10);
     const checks = await Promise.all(candidates.map(x => isBookCategory(x.url)));
-    const items = candidates.filter((_, i) => checks[i]).slice(0, 6);
-
-    return res.status(200).json({ v: 6, found: items.length > 0, items });
+    return candidates.filter((_, i) => checks[i]).slice(0, 6);
   } catch (e) {
-    return res.status(200).json({ v: 6, found: false, items: [] });
+    return [];
   }
+}
+
+// Google 圖書官方目錄天生不會收錄玩具周邊，資料品質比爬蟲猜測可靠，設為優先來源
+// 用金鑰放在 Vercel 環境變數（GOOGLE_BOOKS_API_KEY），不寫死在公開程式碼裡
+const GOOGLE_BOOKS_KEY = process.env.GOOGLE_BOOKS_API_KEY;
+
+function isTaiwanISBN(item) {
+  const ids = (item.volumeInfo && item.volumeInfo.industryIdentifiers) || [];
+  return ids.some(x => /^978(957|986)/.test((x.identifier || '').replace(/-/g, '')));
+}
+
+async function searchGoogleBooks(q) {
+  if (!GOOGLE_BOOKS_KEY) return [];
+  try {
+    const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent('intitle:' + q)
+      + '&langRestrict=zh&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
+    const r = await fetchWithTimeout(u, 5000);
+    if (!r.ok) return []; // 429（配額用盡）、400 等一律安靜降級，外層改用金石堂
+    const data = await r.json();
+    if (!data.items) return [];
+
+    // 只留台灣版（ISBN 978957／978986 開頭），避免混入簡體或其他地區版本
+    const seen = new Set(), items = [];
+    for (const v of data.items.filter(isTaiwanISBN)) {
+      const t = v.volumeInfo && v.volumeInfo.title;
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      items.push({ title: t, url: '' }); // 不給網址，前端會用書名自動產生誠品搜尋連結
+    }
+    return items;
+  } catch (e) {
+    return [];
+  }
+}
+
+async function searchBooks(q, res) {
+  const gItems = await searchGoogleBooks(q);
+  if (gItems.length > 0) {
+    return res.status(200).json({ v: 7, source: 'google', found: true, items: gItems.slice(0, 6) });
+  }
+  // Google 圖書查不到（可能是台灣本土出版社涵蓋不到，或配額用盡）→ 退回金石堂搜尋
+  const kItems = await searchKingstone(q);
+  return res.status(200).json({ v: 7, source: 'kingstone', found: kItems.length > 0, items: kItems });
 }
 
 async function scrapeTitle(url, res) {
