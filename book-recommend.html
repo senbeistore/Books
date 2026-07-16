@@ -77,9 +77,15 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .form{background:#fff;border-radius:16px;padding:13px 14px;margin-bottom:15px;box-shadow:0 2px 8px rgba(180,110,70,.08);border:1.5px solid #F6EBDF}
 .form label{font-size:10.5px;font-weight:700;color:#B08FD4;display:block;margin:9px 0 4px}
 .form label:first-child{margin-top:0}
-.form input,.form textarea{width:100%;border:1.5px solid #F0E1D0;border-radius:11px;padding:9px 11px;font-size:12.5px;font-family:inherit;outline:none;color:#5B4636}
-.form input:focus,.form textarea:focus{border-color:#B08FD4}
+.form input,.form textarea,.form select{width:100%;border:1.5px solid #F0E1D0;border-radius:11px;padding:9px 11px;font-size:12.5px;font-family:inherit;outline:none;color:#5B4636;background:#fff}
+.form select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23C9AEE0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.form input:focus,.form textarea:focus,.form select:focus{border-color:#B08FD4}
 .form textarea{resize:vertical;min-height:52px}
+.agetag{display:inline-block;font-size:8.5px;font-weight:800;border-radius:7px;padding:2px 6px;margin-left:5px;vertical-align:1px}
+.agefilter{display:flex;gap:5px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;scrollbar-width:none}
+.agefilter::-webkit-scrollbar{display:none}
+.afchip{flex-shrink:0;border:1.5px solid #F0E1D0;background:#fff;color:#B5876A;font-size:10.5px;font-weight:700;border-radius:12px;padding:6px 11px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.afchip.on{background:var(--c,#B08FD4);border-color:var(--c,#B08FD4);color:#fff}
 .submitbtn{width:100%;margin-top:12px;background:linear-gradient(135deg,#C9AEE0,#B08FD4);color:#fff;border:none;border-radius:13px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 8px rgba(176,143,212,.3)}
 .submitbtn:disabled{background:#E4D9EE;box-shadow:none;cursor:default}
 .msg{font-size:10.5px;text-align:center;margin-top:8px;line-height:1.6}
@@ -166,19 +172,21 @@ async function submitRec(){
   const t=document.getElementById("rf-title").value.trim();
   const u=document.getElementById("rf-url").value.trim();
   const rs=document.getElementById("rf-reason").value.trim();
+  const ag=document.getElementById("rf-age").value;
   const btn=document.getElementById("rf-btn");
   const msg=document.getElementById("rf-msg");
-  if(!t || !rs){ msg.textContent="請至少填書名和推薦原因喔"; msg.className="msg err"; return; }
+  if(!t || !rs || !ag){ msg.textContent="書名、適合年齡、推薦原因都要填喔"; msg.className="msg err"; return; }
   btn.disabled=true; btn.textContent="送出中…";
   try{
     const id=Date.now()+"-"+Math.random().toString(36).slice(2,8);
-    const data={title:t,url:u,reason:rs,ts:Date.now()};
+    const data={title:t,url:u,reason:rs,age:ag,ts:Date.now()};
     const result=await window.storage.set("rec:"+id, JSON.stringify(data), true);
     if(!result) throw new Error("儲存失敗");
     mySubs.add(id); try{localStorage.setItem("sb_mysubs",JSON.stringify([...mySubs]))}catch(e){}
     document.getElementById("rf-title").value="";
     document.getElementById("rf-url").value="";
     document.getElementById("rf-reason").value="";
+    document.getElementById("rf-age").value="";
     msg.textContent="✓ 推薦成功，謝謝分享！";
     msg.className="msg ok";
     await loadRecs();
@@ -189,18 +197,22 @@ async function submitRec(){
   btn.disabled=false; btn.textContent="送出推薦";
 }
 
-async function meAlso(title){
+async function meAlso(title,age){
   try{
     const id=Date.now()+"-"+Math.random().toString(36).slice(2,8);
-    await window.storage.set("rec:"+id, JSON.stringify({title,url:"",reason:"（跟其他人一樣推薦這本）",ts:Date.now()}), true);
+    await window.storage.set("rec:"+id, JSON.stringify({title,url:"",reason:"（跟其他人一樣推薦這本）",age:age||"",ts:Date.now()}), true);
     await loadRecs();
   }catch(e){}
 }
+
+let recAgeFilter="";
+function setRecAgeFilter(a){ recAgeFilter=a; R(); }
 
 function recView(){
   let h='<div class="rechd"><b>💌 讀者推薦榜</b><p>目標是湊滿 1000 本書單，現在還差很多——你推薦的書會直接補進來。推薦人數越多排越前面，這裡所有人都看得到。</p></div>';
   h+='<div class="form">'
     +'<label>書名</label><input id="rf-title" placeholder="例如：好餓的毛毛蟲">'
+    +'<label>適合年齡</label><select id="rf-age"><option value="">請選擇</option>'+AG.map(k=>'<option value="'+k+'">'+T[k].e+' '+k+'</option>').join('')+'</select>'
     +'<label>網址（選填，博客來／誠品連結都可以）</label><input id="rf-url" placeholder="https://...">'
     +'<label>推薦原因</label><textarea id="rf-reason" placeholder="為什麼想推薦這本書？"></textarea>'
     +'<button class="submitbtn" id="rf-btn" onclick="submitRec()">送出推薦</button>'
@@ -208,17 +220,22 @@ function recView(){
   if(recLoading && RECS===null){
     h+='<div class="loading">載入讀者推薦中…</div>';
   } else {
-    const agg=aggregateRecs();
-    h+='<div class="rlbtitle">🏆 目前榜單（'+agg.length+' 本書・'+(RECS?RECS.length:0)+' 則推薦）</div>';
+    let agg=aggregateRecs();
+    h+='<div class="agefilter"><button class="afchip'+(recAgeFilter===""?" on":"")+'" onclick="setRecAgeFilter(\'\')">全部</button>'
+      +AG.map(k=>'<button class="afchip'+(recAgeFilter===k?" on":"")+'" style="--c:'+T[k].c+'" onclick="setRecAgeFilter(\''+k+'\')">'+T[k].e+' '+k+'</button>').join('')
+      +'</div>';
+    if(recAgeFilter) agg=agg.filter(item=>{const latest=item.items[item.items.length-1];return latest.age===recAgeFilter});
+    h+='<div class="rlbtitle">🏆 目前榜單（'+agg.length+' 本書）</div>';
     if(!agg.length) h+='<div class="em"><div style="font-size:32px;margin-bottom:8px">📮</div>還沒有人推薦，當第一個吧！</div>';
     agg.forEach((item,i)=>{
       const latest=item.items[item.items.length-1];
+      const at=latest.age && T[latest.age] ? T[latest.age] : null;
       h+='<div class="rlitem"><div class="rlrow"><div class="rlrank">'+(i+1)+'</div><div class="bd">'
-        +'<div class="rltitle">'+item.title+'</div>'
+        +'<div class="rltitle">'+item.title+(at?'<span class="agetag" style="background:'+at.p+';color:'+at.c+'">'+at.e+' '+latest.age+'</span>':'')+'</div>'
         +'<div class="rlcount">'+item.count+' 人推薦</div>'
         +'<div class="rlreason">"'+latest.reason+'"</div>'
         +(latest.url?'<a class="rllink" href="'+latest.url+'" target="_blank">查看書籍連結 ↗</a>':'')
-        +'<br><button class="rlme" onclick="meAlso(\''+item.title.replace(/'/g,"\\'")+'\')">👍 我也推薦這本</button>'
+        +'<br><button class="rlme" onclick="meAlso(\''+item.title.replace(/'/g,"\\'")+'\',\''+(latest.age||'')+'\')">👍 我也推薦這本</button>'
         +'</div></div></div>';
     });
   }
