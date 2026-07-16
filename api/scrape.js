@@ -17,12 +17,13 @@ async function searchBooks(q, res) {
     const html = await r.text();
 
     const seen = new Set(), items = [];
-    // 抓所有商品連結 /basic/數字/ 及其連結文字
-    const re = /href="(https?:\/\/www\.kingstone\.com\.tw)?\/basic\/(\d+)\/[^"]*"[^>]*>([^<]{2,150}?)</gi;
+    // 只抓帶 ?lid=search 的連結 = 真正的搜尋結果
+    // （頁面頂端「熱門關鍵字」帶的是 ?lid=home_keyword 或無參數，會被排除）
+    const re = /href="[^"]*\/basic\/(\d+)\/\?lid=search[^"]*"[^>]*>([^<]{2,150}?)</gi;
     let m;
     while ((m = re.exec(html)) !== null && items.length < 6) {
-      const id = m[2];
-      let t = decode(m[3]);
+      const id = m[1];
+      let t = decode(m[2]);
       if (!t || t.length < 2 || seen.has(id)) continue;
       if (/^【電子書】/.test(t)) continue;        // 排掉電子書
       if (/^(買整套|試閱|下次再買|加入購物車|貨到通知)$/.test(t)) continue; // 排掉按鈕文字
