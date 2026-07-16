@@ -24,9 +24,9 @@ function isTaiwanISBN(item) {
 }
 
 async function callGoogleBooksOnce(q) {
-  // 拿掉 intitle: 前綴和 langRestrict：這兩個沒有實質過濾效果（langRestrict 不分繁簡，
-  // intitle: 只是全文比對的變體），純文字查詢更單純，懷疑是這兩個參數組合誘發 503
-  const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q)
+  // 恢復 intitle: 前綴：確保只搜書名符合的書，避免撈到內文提到相同字詞的不相關書籍
+  // （503 問題已靠下面的自動重試解決，不是 intitle: 造成的）
+  const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent('intitle:' + q)
     + '&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 5000);
@@ -61,6 +61,15 @@ async function searchGoogleBooks(q) {
     // 沒有 ISBN 資料的則退而求其次，只憑書名含中文字保留（反正 Google 圖書天生不會混進玩具）
     const hasChinese = (t) => /[\u4e00-\u9fff]/.test(t || '');
     const hasIdentifiers = (v) => ((v.volumeInfo && v.volumeInfo.industryIdentifiers) || []).length > 0;
+    // intitle: 有時還是會混進相關度低的書，用查詢字詞跟書名的重疊比例再把關一次
+    const ql = q.trim();
+    const relevant = (t) => {
+      const clean = t.replace(/[！!？?。，,、：:（）()「」『』【】\s]/g, '');
+      const qClean = ql.replace(/[！!？?。，,、：:（）()「」『』【】\s]/g, '');
+      if (!qClean) return true;
+      const overlap = [...qClean].filter(ch => clean.includes(ch)).length;
+      return overlap / qClean.length >= 0.6; // 查詢字詞至少 6 成要出現在書名裡
+    };
 
     const seen = new Set(), items = [];
     for (const v of data.items) {
@@ -68,6 +77,7 @@ async function searchGoogleBooks(q) {
       if (!ti || seen.has(ti)) continue;
       if (hasIdentifiers(v) && !isTaiwanISBN(v)) continue; // 有 ISBN 但不是台版，排除
       if (!hasChinese(ti)) continue; // 沒有中文字的（純日文/英文書名）不收
+      if (!relevant(ti)) continue; // 書名跟查詢字詞重疊太少，多半是不相關的書
       seen.add(ti);
       items.push({ title: ti, url: '' });
     }
@@ -80,7 +90,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 12, source: 'google',
+    v: 13, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
