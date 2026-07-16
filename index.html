@@ -202,7 +202,7 @@ function parseCSV(text){
   return rows;
 }
 
-const ALLOWED_DOMAINS = ["books.com.tw","eslite.com","kingstone.com.tw","sanmin.com.tw"];
+const ALLOWED_DOMAINS = ["eslite.com"];
 const AFFILIATE_PATTERN = /assp\.php|\/exep\/assp|affiliate|\/aff\/|adtrack|\/ap\//i;
 
 function cleanUrl(raw){
@@ -213,7 +213,7 @@ function cleanUrl(raw){
   try{ u=new URL(s); }catch(e){ return {ok:false,msg:"這個網址看起來不太對"}; }
   const host=u.hostname.toLowerCase();
   const hostOk = ALLOWED_DOMAINS.some(d => host===d || host.endsWith("."+d));
-  if(!hostOk) return {ok:false,msg:"只接受博客來・誠品・金石堂・三民的書籍連結"};
+  if(!hostOk) return {ok:false,msg:"只接受誠品的書籍連結"};
   if(AFFILIATE_PATTERN.test(u.pathname)) return {ok:false,msg:"🚫 這是分潤連結，請貼書籍頁原始網址"};
   // 砍掉 ? 後面所有參數（分潤與追蹤碼都藏在這）
   return {ok:true, url: u.origin + u.pathname};
@@ -307,13 +307,13 @@ function toggleManualUrl(){
   const open = box.style.display!=="none";
   box.style.display = open ? "none" : "block";
   const link=document.getElementById("rf-manuallink");
-  if(link) link.textContent = open ? "找不到？來這邊貼上網址" : "▲ 收起";
+  if(link) link.textContent = open ? "找不到書名？到書店找" : "▲ 收起";
 }
 function hideManualUrl(){
   const box=document.getElementById("rf-manualbox");
   if(box) box.style.display="none";
   const link=document.getElementById("rf-manuallink");
-  if(link) link.textContent="找不到？來這邊貼上網址";
+  if(link) link.textContent="找不到書名？到書店找";
 }
 
 async function checkManualUrl(){
@@ -343,10 +343,7 @@ async function checkManualUrl(){
 }
 
 const STORES=[
-  {n:"博客來", c:"#3E7CB8", u:t=>"https://search.books.com.tw/search/query/key/"+encodeURIComponent(t)+"/cat/all"},
-  {n:"誠品", c:"#6E9A5E", u:t=>"https://www.eslite.com/Search?keyword="+encodeURIComponent(t)},
-  {n:"金石堂", c:"#C05B4D", u:t=>"https://www.kingstone.com.tw/search/key/"+encodeURIComponent(t)},
-  {n:"三民", c:"#8E5A78", u:t=>"https://www.sanmin.com.tw/search?k="+encodeURIComponent(t)}
+  {n:"誠品", c:"#6E9A5E", u:t=>"https://www.eslite.com/Search?keyword="+encodeURIComponent(t)}
 ];
 function openStoreFor(i){
   const t=document.getElementById("rf-title")?document.getElementById("rf-title").value.trim():"";
@@ -403,13 +400,13 @@ function recView(){
     +'<label>書名</label>'
     +'<div class="titlerow"><input id="rf-title" placeholder="例如：好餓的毛毛蟲" oninput="updateSubmitState()"><button class="findbtn" onclick="searchBook()">🔍 找書</button></div>'
     +'<div id="rf-cands"></div>'
-    +'<a id="rf-manuallink" class="manuallink" onclick="toggleManualUrl()">找不到？來這邊貼上網址</a>'
+    +'<a id="rf-manuallink" class="manuallink" onclick="toggleManualUrl()">找不到書名？到書店找</a>'
     +'<div id="rf-manualbox" style="display:none">'
-      +'<div class="storerow"><span class="storelbl">🔍 不知道網址？先打書名再點書店找</span>'
+      +'<div class="storerow"><span class="storelbl">🔍 打書名後點下方按鈕，去誠品搜尋</span>'
         +STORES.map((s,i)=>'<button class="storebtn" style="--c:'+s.c+'" onclick="openStoreFor('+i+')">'+s.n+' ↗</button>').join('')
       +'</div>'
       +'<label>網址　<span class="warnlabel">嚴禁任何分潤連結，會自動阻擋／刪除</span></label>'
-      +'<input id="rf-manualurl" placeholder="https://... 博客來・誠品・金石堂・三民" onblur="checkManualUrl()">'
+      +'<input id="rf-manualurl" placeholder="https://... 誠品線上" onblur="checkManualUrl()">'
       +'<div id="rf-manualresult"></div>'
     +'</div>'
     +'<label>適合年齡</label><select id="rf-age" onchange="updateSubmitState()"><option value="">請選擇</option>'+AG.map(k=>'<option value="'+k+'">'+T[k].e+' '+k+'</option>').join('')+'</select>'
