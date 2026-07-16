@@ -106,6 +106,8 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .wishbtn{background:#fff;border:1.5px solid #F3E3D3;border-radius:9px;padding:5px 9px;font-size:13px;cursor:pointer;font-family:inherit;line-height:1;filter:grayscale(1) opacity(.45);transition:.15s;margin-right:5px}
 .wishbtn.on{filter:none;background:#FFF3E6;border-color:#F0B98A}
 .wishbtn:active{transform:scale(.9)}
+.topfab{position:fixed;right:19px;bottom:18px;z-index:199;display:flex;align-items:center;justify-content:center;width:42px;height:42px;border:1.5px solid #F0D9C4;border-radius:50%;background:rgba(255,252,248,.94);color:#C99677;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(200,150,110,.22);font-family:inherit;backdrop-filter:blur(4px);transition:bottom .2s}
+.topfab:active{transform:scale(.9);background:#FFF3E6}
 .wishfab{position:fixed;right:15px;bottom:18px;z-index:200;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border:none;border-radius:50%;background:linear-gradient(145deg,#FF9E68,#F07E45);color:#fff;font-size:22px;cursor:pointer;box-shadow:0 5px 16px rgba(240,126,69,.42);font-family:inherit}
 .wishfab:active{transform:scale(.92)}
 .wishnum{position:absolute;top:-3px;right:-3px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#C2410C;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
@@ -135,7 +137,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .cpc-tag{font-size:8.5px;font-weight:800;color:#fff;background:#E0895A;border-radius:6px;padding:3px 7px;white-space:nowrap}
 .cpc-s{font-size:9.5px;color:#A87A56;font-weight:600}
 .wmk{font-size:7.5px;color:#C9A98F;opacity:.42;letter-spacing:.4px;margin-top:7px;font-weight:600;user-select:none;pointer-events:none}
-.wmk-c{text-align:center;margin:9px 0 0;opacity:.5}
+.wmk-c{text-align:center;margin:10px 0 0;opacity:.62;font-size:10px}
 .warnlabel{font-size:9px;font-weight:700;color:#E0755A;background:#FFF0EC;border-radius:5px;padding:2px 5px;letter-spacing:.2px}
 .manuallink{display:inline-block;font-size:10.5px;color:#B08FD4;font-weight:700;margin-top:8px;text-decoration:underline;cursor:pointer}
 #rf-manualbox{margin-top:6px;background:#FBF8FF;border:1px solid #EEE1FA;border-radius:11px;padding:9px 10px}
@@ -182,10 +184,12 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .brand-footer .bf-emoji{font-size:22px;margin-bottom:6px;transition:.15s}
 .brand-footer .bf-text{font-family:'Baloo 2',sans-serif;font-size:13px;font-weight:700;color:#C99677;letter-spacing:.3px}
 .brand-footer .bf-sub{font-size:10px;color:#DDC1A8;margin-top:4px}
+.ver{font-size:8px;opacity:.45;margin-left:5px;letter-spacing:.3px}
 </style></head><body>
 <div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・出版社…" oninput="S(this.value)"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
 <div class="wrap" id="main"></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗</div></a>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v42</span></div></a>
+<button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <button class="wishfab" id="wishfab" onclick="openWish()" style="display:none">📖<span class="wishnum" id="wishnum">0</span></button>
 <div class="wishmodal" id="wishmodal" onclick="if(event.target===this)closeWish()"><div class="wishbox"><div class="wishhd"><b>📖 我的購書清單</b><button class="wishclose" onclick="closeWish()">✕</button></div><div class="wishtip">加進來的書不會消失，之後自己上網比價、下單都方便</div><div class="wishlist" id="wishlist"></div><div class="wmk wmk-c">📚 1000本計畫・@senbei.store</div><button class="wishcopy" id="wishcopy" onclick="copyWishList()">📋 複製全部書名</button><a class="wishcp" id="wishcp" href="https://mall.iopenmall.tw/000043/" target="_blank"></a></div></div>
 <iframe name="hidden_iframe" id="hidden_iframe" style="display:none"></iframe>
@@ -338,12 +342,34 @@ function toggleWish(t,a,p){
 }
 function removeWish(i){ WISH.splice(i,1); saveWish(); renderWishFab(); renderWishList(); R(); }
 
+function scrollTop(){
+  // 用最基本的寫法（不用 {behavior:"smooth"} 選項式寫法），
+  // 因為那種寫法在部分 iOS Safari / WebView 環境支援不穩定，點了會沒反應
+  if (window.scrollTo) window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+// 回頂端鈕的位置要跟著心願鈕連動：心願清單空的時候心願鈕會隱藏，
+// 這時回頂端鈕要降到底部，不然會浮在半空中
+function placeTopFab(){
+  const t=document.getElementById("topfab");
+  if(t) t.style.bottom = (WISH.length ? 80 : 18) + "px";
+}
+window.addEventListener("scroll", ()=>{
+  const t=document.getElementById("topfab");
+  if(!t) return;
+  const show = window.scrollY > 500;
+  t.style.display = show ? "flex" : "none";
+  if(show) placeTopFab();
+}, {passive:true});
+
 function renderWishFab(){
   const f=document.getElementById("wishfab");
   if(!f) return;
   f.style.display = WISH.length ? "flex" : "none";
   const c=document.getElementById("wishnum");
   if(c) c.textContent=WISH.length;
+  placeTopFab();
 }
 function openWish(){ document.getElementById("wishmodal").classList.add("open"); renderWishList(); renderWishCoupon(); }
 function closeWish(){ document.getElementById("wishmodal").classList.remove("open"); }
@@ -581,8 +607,8 @@ function tabs(){
   }).join("");
   const a=document.querySelector(".tab.on"); if(a)a.scrollIntoView({inline:"center",behavior:"smooth"});
 }
-function GO(k){g=k;q="";document.getElementById("q").value="";document.getElementById("cbx").style.display="none";R();window.scrollTo({top:0,behavior:"smooth"});if(k==="讀者推薦"&&RECS===null)loadRecs()}
-function TY(x){ty=x;R();window.scrollTo({top:0,behavior:"smooth"})}
+function GO(k){g=k;q="";document.getElementById("q").value="";document.getElementById("cbx").style.display="none";R();window.scrollTo(0,0);if(k==="讀者推薦"&&RECS===null)loadRecs()}
+function TY(x){ty=x;R();window.scrollTo(0,0)}
 function TG(id){D.has(id)?D.delete(id):D.add(id);save();R()}
 function S(v){q=v.trim();document.getElementById("cbx").style.display=v?"block":"none";R()}
 function C(){q="";document.getElementById("q").value="";document.getElementById("cbx").style.display="none";R()}
