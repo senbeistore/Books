@@ -99,7 +99,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .rlcount{font-size:9.5px;color:#B08FD4;font-weight:700;margin-top:2px}
 .rlreason{font-size:11px;color:#7A6553;line-height:1.6;margin-top:5px;padding-top:5px;border-top:1px solid #F6EBDF}
 .rllink{font-size:10px;color:#B08FD4;text-decoration:none;display:inline-block;margin-top:5px;font-weight:700}
-.rlme{background:#FBF6FF;border:1.5px solid #E4D9EE;color:#B08FD4;font-size:10px;font-weight:700;border-radius:9px;padding:5px 10px;margin-top:7px;cursor:pointer;font-family:inherit}
+.rllink.find{color:#C99677}
 .urlhint{font-size:10px;line-height:1.5;margin-top:4px;padding:0 2px}
 .urlhint.ok{color:#5CA86B;font-weight:700}
 .urlhint.err{color:#E0755A;font-weight:600}
@@ -143,8 +143,6 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .storelbl{font-size:9.5px;color:#B5876A;font-weight:600;margin-right:1px}
 .storebtn{background:#fff;border:1.5px solid var(--c);color:var(--c);font-size:10.5px;font-weight:800;border-radius:9px;padding:5px 10px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
 .storebtn:active{background:var(--c);color:#fff;transform:scale(.95)}
-.storehint{font-size:9.5px;color:#C4956F;font-weight:600;margin-top:5px;background:#FFF8ED;border-radius:7px;padding:5px 8px;line-height:1.5}
-.storehint.ok{color:#5CA86B;background:#F1FAF2}
 .titlerow{display:flex;gap:6px;align-items:stretch}
 .titlerow input{flex:1;min-width:0}
 .findbtn{background:#F0A868;color:#fff;border:none;border-radius:10px;padding:0 13px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
@@ -160,8 +158,6 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .scrapebox.none{background:#FBF6EE;color:#B5876A}
 .scrapebox.fix{background:#FFF3D9;color:#9A6B2C;display:flex;align-items:center;flex-wrap:wrap;gap:5px}
 .scrapebox.fix b{color:#7A5320}
-.fixbtn{background:#9A6B2C;color:#fff;border:none;border-radius:7px;padding:4px 9px;font-size:10px;font-weight:800;cursor:pointer;font-family:inherit}
-.reccnt{display:inline-block;font-size:8.5px;font-weight:800;background:#F3EBFB;color:#B08FD4;border-radius:6px;padding:1px 5px;margin-left:4px;vertical-align:1px}
 .recoff{width:100%;background:#fff;border:1.5px dashed #E4D9EE;color:#B08FD4;border-radius:12px;padding:10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px}
 .cardfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
 .likebtn{flex-shrink:0;background:#F6F1FC;border:1.5px solid #E4D9EE;color:#B08FD4;font-size:10.5px;font-weight:800;border-radius:11px;padding:5px 11px;cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
@@ -567,7 +563,9 @@ function recView(){
         +(latest.url
           ? '<a class="rllink" href="'+latest.url+'" target="_blank">查看書籍連結 ↗</a>'
           : '<a class="rllink find" href="'+STORES.find(s=>s.n==="誠品").u(item.title)+'" target="_blank">🔍 去誠品找這本書 ↗</a>')
-        +'<div class="cardfoot"><div></div><button class="likebtn'+(liked?" liked":"")+'" onclick="likeBook(\''+item.title.replace(/'/g,"\\'")+'\',\''+(latest.age||"")+'\',\''+(latest.url||"")+'\')">'+(liked?'💜':'👍')+' '+item.count+'</button></div>'
+        +'<div class="cardfoot"><div></div>'
+        +'<button class="wishbtn'+(inWish(item.title)?" on":"")+'" onclick="toggleWish(\''+item.title.replace(/'/g,"\\'")+'\',\'\',\'\')">📖</button>'
+        +'<button class="likebtn'+(liked?" liked":"")+'" onclick="likeBook(\''+item.title.replace(/'/g,"\\'")+'\',\''+(latest.age||"")+'\',\''+(latest.url||"")+'\')">'+(liked?'💜':'👍')+' '+item.count+'</button></div>'
         +'</div></div></div>';
     });
   }
@@ -699,7 +697,9 @@ function R(){
           +(x.url
             ? '<a class="rllink" href="'+x.url+'" target="_blank">查看書籍連結 ↗</a>'
             : '<a class="rllink find" href="'+STORES.find(s=>s.n==="誠品").u(x.title)+'" target="_blank">🔍 去誠品找這本書 ↗</a>')
-          +'<div class="cardfoot"><button class="likebtn'+(liked?" liked":"")+'" onclick="likeBook(\''+x.title.replace(/'/g,"\\'")+'\',\''+g+'\',\''+(x.url||"")+'\')">'+(liked?'💜':'👍')+' '+x.count+'</button></div>'
+          +'<div class="cardfoot"><div></div>'
+          +'<button class="wishbtn'+(inWish(x.title)?" on":"")+'" onclick="toggleWish(\''+x.title.replace(/'/g,"\\'")+'\',\'\',\'\')">📖</button>'
+          +'<button class="likebtn'+(liked?" liked":"")+'" onclick="likeBook(\''+x.title.replace(/'/g,"\\'")+'\',\''+g+'\',\''+(x.url||"")+'\')">'+(liked?'💜':'👍')+' '+x.count+'</button></div>'
           +'</div></div>';
       });
     }
