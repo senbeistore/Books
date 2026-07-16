@@ -2,6 +2,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/6
 const HEADERS = { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'zh-TW,zh;q=0.9' };
 const SITE_SUFFIX = /\s*[|｜\-－–—]\s*(誠品線上|誠品|金石堂[^]*|三民網路書店|三民)\s*$/i;
 const GENERIC = ['誠品線上','誠品','金石堂','金石堂網路書店','三民網路書店','親子館','中文書','童書'];
+// 金石堂常把周邊商品也掛在書籍分類底下賣（水壺、背包、桌遊等），用關鍵字擋掉非書籍實物
+const MERCH_WORDS = ['杯','水壺','水瓶','餐具','餐盤','餐碗','筷','湯匙','背包','書包','鉛筆盒','筆袋','文具組',
+  '貼紙','磁鐵','鑰匙圈','吊飾','玩偶','娃娃','公仔','積木','拼圖','骨牌','撲克牌','桌遊','玩具','夜燈',
+  '雨傘','帽','襪','手錶','行李箱','野餐墊','便當','收納','保溫瓶','安撫巾','口水巾','圍兜','睡袋','抱枕',
+  '悠遊卡','月曆','桌曆','行事曆','年曆','提袋','托特包','束口袋','護照套','零錢包','徽章','馬克杯'];
+function isMerch(t){ return MERCH_WORDS.some(w=>t.includes(w)); }
 
 function decode(s) {
   return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#0?39;/g,"'")
@@ -28,6 +34,7 @@ async function searchBooks(q, res) {
       if (!t || t.length < 2 || seen.has(id)) continue;
       // 金石堂商品編號：20=實體書、28=電子書、30=文具玩具周邊。只要書。
       if (!/^20/.test(id)) continue;
+      if (isMerch(t)) continue;
       if (/^【電子書】/.test(t)) continue;
       if (/^(買整套|試閱|下次再買|加入購物車|貨到通知)$/.test(t)) continue;
       seen.add(id);
@@ -48,9 +55,9 @@ async function searchBooks(q, res) {
       return d !== 0 ? d : a.title.length - b.title.length;
     });
 
-    return res.status(200).json({ v: 4, found: items.length > 0, items: items.slice(0, 6) });
+    return res.status(200).json({ v: 5, found: items.length > 0, items: items.slice(0, 6) });
   } catch (e) {
-    return res.status(200).json({ v: 4, found: false, items: [] });
+    return res.status(200).json({ v: 5, found: false, items: [] });
   }
 }
 
