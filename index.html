@@ -104,6 +104,20 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .urlhint.ok{color:#5CA86B;font-weight:700}
 .urlhint.err{color:#E0755A;font-weight:600}
 .warnlabel{font-size:9px;font-weight:700;color:#E0755A;background:#FFF0EC;border-radius:5px;padding:2px 5px;letter-spacing:.2px}
+.storerow{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:7px}
+.storelbl{font-size:9.5px;color:#B5876A;font-weight:600;margin-right:1px}
+.storebtn{background:#fff;border:1.5px solid var(--c);color:var(--c);font-size:10.5px;font-weight:800;border-radius:9px;padding:5px 10px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
+.storebtn:active{background:var(--c);color:#fff;transform:scale(.95)}
+.storehint{font-size:9.5px;color:#C4956F;font-weight:600;margin-top:5px;background:#FFF8ED;border-radius:7px;padding:5px 8px;line-height:1.5}
+.storehint.ok{color:#5CA86B;background:#F1FAF2}
+.titlerow{display:flex;gap:6px;align-items:stretch}
+.titlerow input{flex:1;min-width:0}
+.findbtn{background:#F0A868;color:#fff;border:none;border-radius:10px;padding:0 13px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.findbtn:active{transform:scale(.95)}
+.candlbl{font-size:10px;color:#B5876A;font-weight:700;margin:7px 0 5px}
+.cand{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid #F3E3D3;border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;color:#5B4636;cursor:pointer;font-family:inherit;margin-bottom:5px;line-height:1.45}
+.cand:active{background:#FFF3E4;border-color:#F0A868}
+.candskip{font-size:9px;color:#C9A88C;margin-top:3px;line-height:1.5}
 .scrapebox{border-radius:9px;padding:7px 9px;font-size:10px;line-height:1.6;margin-top:5px}
 .scrapebox.load{background:#F6F1FC;color:#B08FD4}
 .scrapebox.ok{background:#EFF9F0;color:#4C8A57;font-weight:700}
@@ -186,7 +200,7 @@ function parseCSV(text){
   return rows;
 }
 
-const ALLOWED_DOMAINS = ["books.com.tw","eslite.com","kingstone.com.tw","taaze.tw","sanmin.com.tw","cite.com.tw","linkingbooks.com.tw"];
+const ALLOWED_DOMAINS = ["eslite.com","kingstone.com.tw","sanmin.com.tw"];
 const AFFILIATE_PATTERN = /assp\.php|\/exep\/assp|affiliate|\/aff\/|adtrack|\/ap\//i;
 
 function cleanUrl(raw){
@@ -197,7 +211,7 @@ function cleanUrl(raw){
   try{ u=new URL(s); }catch(e){ return {ok:false,msg:"這個網址看起來不太對"}; }
   const host=u.hostname.toLowerCase();
   const hostOk = ALLOWED_DOMAINS.some(d => host===d || host.endsWith("."+d));
-  if(!hostOk) return {ok:false,msg:"只接受書店連結：博客來・誠品・金石堂・讀冊・三民・城邦・聯經"};
+  if(!hostOk) return {ok:false,msg:"只接受誠品・金石堂・三民的書籍連結"};
   if(AFFILIATE_PATTERN.test(u.pathname)) return {ok:false,msg:"🚫 這是分潤連結，請貼書籍頁原始網址"};
   // 砍掉 ? 後面所有參數（分潤與追蹤碼都藏在這）
   return {ok:true, url: u.origin + u.pathname};
@@ -247,91 +261,82 @@ const SCRAPE_API = "https://books-sage-kappa.vercel.app/api/scrape";
 const BADWORDS = ["幹你","幹妳","幹您","靠北","靠腰","機掰","雞掰","機八","雞巴","三小","媽的","他媽","她媽","恁娘","幹死","幹爆","操你","肏","去死","智障","低能","娘炮","婊子","賤人","賤貨","屌你","王八蛋","雜種","畜生","滾蛋","神經病"];
 function hasBadWord(s){ const t=(s||"").replace(/\s/g,""); return BADWORDS.some(w=>t.includes(w)); }
 
-let scrapeTitle=null, scrapeState="idle";
+let pickedUrl="", cands=[];
 
-async function checkUrl(){
-  const u=document.getElementById("rf-url").value.trim();
-  const box=document.getElementById("rf-scrape");
+async function searchBook(){
+  const ti=document.getElementById("rf-title");
+  const t=ti?ti.value.trim():"";
+  const box=document.getElementById("rf-cands");
   if(!box) return;
-  const c=cleanUrl(u);
-  if(!u||!c.ok){ box.innerHTML=""; scrapeTitle=null; scrapeState="idle"; return; }
-  scrapeState="loading";
-  box.innerHTML='<div class="scrapebox load">🔍 確認書名中…</div>';
+  if(!t){ box.innerHTML=""; cands=[]; pickedUrl=""; return; }
+  box.innerHTML='<div class="scrapebox load">🔍 幫你找這本書…</div>';
   try{
-    const res=await fetch(SCRAPE_API+"?url="+encodeURIComponent(c.url));
-    const d=await res.json();
-    if(d && d.found && d.title){
-      scrapeTitle=d.title; scrapeState="found";
-      const ti=document.getElementById("rf-title");
-      const typed=ti?ti.value.trim():"";
-      if(!typed){
-        if(ti) ti.value=d.title;
-        box.innerHTML='<div class="scrapebox ok">✓ 已自動填入書名：'+d.title+'</div>';
-      } else if(normTitle(typed)!==normTitle(d.title)){
-        box.innerHTML='<div class="scrapebox fix">系統查到的書名是<b>'+d.title+'</b>　<button class="fixbtn" onclick="useScraped()">用這個</button></div>';
-      } else {
-        box.innerHTML='<div class="scrapebox ok">✓ 書名正確</div>';
-      }
+    const r=await fetch(SCRAPE_API+"?q="+encodeURIComponent(t));
+    const d=await r.json();
+    if(d && d.found && d.items && d.items.length){
+      cands=d.items;
+      box.innerHTML='<div class="candlbl">👇 找到這些，點一下你要推薦的那本</div>'
+        +cands.map((x,i)=>'<button class="cand" onclick="pickBook('+i+')">'+esc(x.title)+'</button>').join('')
+        +'<div class="candskip">都不是也沒關係，直接送出就會用你打的書名</div>';
     } else {
-      scrapeTitle=null; scrapeState="notfound";
-      box.innerHTML='<div class="scrapebox none">這個網站擋自動查詢，會直接用你填的書名</div>';
+      cands=[]; pickedUrl="";
+      box.innerHTML='<div class="scrapebox none">找不到這本書，會直接用你打的書名</div>';
     }
   }catch(e){
-    scrapeTitle=null; scrapeState="notfound";
-    box.innerHTML='<div class="scrapebox none">這個網站擋自動查詢，會直接用你填的書名</div>';
+    cands=[]; pickedUrl="";
+    box.innerHTML='<div class="scrapebox none">查詢失敗，會直接用你打的書名</div>';
   }
   updateSubmitState();
 }
 
-function useScraped(){
-  if(!scrapeTitle) return;
+function pickBook(i){
+  const x=cands[i]; if(!x) return;
   const ti=document.getElementById("rf-title");
-  if(ti) ti.value=scrapeTitle;
-  document.getElementById("rf-scrape").innerHTML='<div class="scrapebox ok">✓ 已更正書名</div>';
+  if(ti) ti.value=x.title;
+  pickedUrl=x.url;
+  document.getElementById("rf-cands").innerHTML='<div class="scrapebox ok">✓ 已選：'+esc(x.title)+'</div>';
   updateSubmitState();
 }
 
+const STORES=[
+  {n:"誠品", c:"#6E9A5E", u:t=>"https://www.eslite.com/Search?keyword="+encodeURIComponent(t)},
+  {n:"金石堂", c:"#C05B4D", u:t=>"https://www.kingstone.com.tw/search/key/"+encodeURIComponent(t)},
+  {n:"三民", c:"#8E5A78", u:t=>"https://www.sanmin.com.tw/search?k="+encodeURIComponent(t)}
+];
 function updateSubmitState(){
   const btn=document.getElementById("rf-btn");
   if(!btn) return;
   const ti=document.getElementById("rf-title");
   const t=ti?ti.value.trim():"";
-  const uRaw=document.getElementById("rf-url")?document.getElementById("rf-url").value.trim():"";
   const rs=document.getElementById("rf-reason")?document.getElementById("rf-reason").value.trim():"";
   const ag=document.getElementById("rf-age")?document.getElementById("rf-age").value:"";
-  const hint=document.getElementById("rf-urlhint");
-  let urlOk=false;
-  if(uRaw){
-    const c=cleanUrl(uRaw);
-    urlOk=c.ok;
-    if(hint) hint.innerHTML = c.ok ? '<div class="urlhint ok">✓ 網址可以用</div>' : '<div class="urlhint err">'+c.msg+'</div>';
-  } else if(hint) hint.innerHTML="";
   const clean = !hasBadWord(t) && !hasBadWord(rs);
   const msg=document.getElementById("rf-msg");
   if(msg && !clean){ msg.textContent="內容含不當字詞，請修改後再送出"; msg.className="msg err"; }
   else if(msg && msg.className==="msg err" && msg.textContent.indexOf("不當字詞")>=0){ msg.textContent=""; msg.className="msg"; }
-  btn.disabled = !(t && urlOk && rs && ag && clean);
+  btn.disabled = !(t && rs && ag && clean);
 }
 
 function submitRec(){
   const t=document.getElementById("rf-title").value.trim();
-  const uRaw=document.getElementById("rf-url").value.trim();
   const rs=document.getElementById("rf-reason").value.trim();
   const ag=document.getElementById("rf-age").value;
   const msg=document.getElementById("rf-msg");
-  const c=cleanUrl(uRaw);
-  if(!t||!c.ok||!rs||!ag){ msg.textContent="書名、網址、推薦原因、適合年齡都要填喔"; msg.className="msg err"; return; }
+  if(!t||!rs||!ag){ msg.textContent="書名、推薦原因、適合年齡都要填喔"; msg.className="msg err"; return; }
   if(hasBadWord(t)||hasBadWord(rs)){ msg.textContent="內容含不當字詞，請修改後再送出"; msg.className="msg err"; return; }
+  // 只有從搜尋結果點選的網址才會被存，客人無法自己貼 → 分潤連結完全不可能進來
+  let finalUrl="";
+  if(pickedUrl){ const c=cleanUrl(pickedUrl); if(c.ok) finalUrl=c.url; }
 
-  postToForm({ [FORM_ENTRY.title]:t, [FORM_ENTRY.author]:"", [FORM_ENTRY.publisher]:"", [FORM_ENTRY.url]:c.url, [FORM_ENTRY.reason]:rs, [FORM_ENTRY.age]:ag });
+  postToForm({ [FORM_ENTRY.title]:t, [FORM_ENTRY.author]:"", [FORM_ENTRY.publisher]:"", [FORM_ENTRY.url]:finalUrl, [FORM_ENTRY.reason]:rs, [FORM_ENTRY.age]:ag });
 
   msg.textContent="✓ 推薦已送出，謝謝分享！榜單稍後會更新";
   msg.className="msg ok";
   document.getElementById("rf-title").value="";
-  document.getElementById("rf-url").value="";
   document.getElementById("rf-reason").value="";
   document.getElementById("rf-age").value="";
-  document.getElementById("rf-urlhint").innerHTML="";
+  document.getElementById("rf-cands").innerHTML="";
+  pickedUrl=""; cands=[];
   document.getElementById("rf-btn").disabled=true;
   setTimeout(loadRecs, 4000);
 }
@@ -340,11 +345,11 @@ let recAgeFilter="";
 function setRecAgeFilter(a){ recAgeFilter=a; R(); }
 
 function recView(){
-  let h='<div class="rechd"><b>💌 讀者推薦榜</b><p>目標是湊滿 1000 本書單，現在還差很多——你推薦的書會直接補進來。推薦人數越多排越前面，這裡所有人都看得到。<br><br>🚫 嚴禁任何分潤連結，系統會自動阻擋，已送出的也會刪除。</p></div>';
+  let h='<div class="rechd"><b>💌 讀者推薦榜</b><p>目標是湊滿 1000 本書單，現在還差很多——你推薦的書會直接補進來。推薦人數越多排越前面，這裡所有人都看得到。<br><br>打上書名按「找書」，點一下正確的那本就好，不用貼網址。</p></div>';
   h+='<div class="form">'
-    +'<label>書名</label><input id="rf-title" placeholder="例如：好餓的毛毛蟲" oninput="updateSubmitState()">'
-    +'<label>網址　<span class="warnlabel">嚴禁任何分潤連結，會自動阻擋／刪除</span></label><input id="rf-url" placeholder="https://... 博客來・誠品・金石堂・讀冊・三民" oninput="updateSubmitState()" onblur="checkUrl()">'
-    +'<div id="rf-urlhint"></div><div id="rf-scrape"></div>'
+    +'<label>書名</label>'
+    +'<div class="titlerow"><input id="rf-title" placeholder="例如：好餓的毛毛蟲" oninput="updateSubmitState()"><button class="findbtn" onclick="searchBook()">🔍 找書</button></div>'
+    +'<div id="rf-cands"></div>'
     +'<label>適合年齡</label><select id="rf-age" onchange="updateSubmitState()"><option value="">請選擇</option>'+AG.map(k=>'<option value="'+k+'">'+T[k].e+' '+k+'</option>').join('')+'</select>'
     +'<label>推薦原因</label><textarea id="rf-reason" placeholder="為什麼想推薦這本書？" oninput="updateSubmitState()"></textarea>'
     +'<button class="submitbtn" id="rf-btn" onclick="submitRec()" disabled>送出推薦</button>'
@@ -370,7 +375,9 @@ function recView(){
         +(latest.author?'<div class="ba">'+latest.author+(latest.publisher?' ・ '+latest.publisher:'')+'</div>':'')
         +'<div class="rlcount">'+item.count+' 人推薦　'+near+'</div>'
         +'<div class="rlreason">"'+latest.reason+'"</div>'
-        +(latest.url?'<a class="rllink" href="'+latest.url+'" target="_blank">查看書籍連結 ↗</a>':'')
+        +(latest.url
+          ? '<a class="rllink" href="'+latest.url+'" target="_blank">查看書籍連結 ↗</a>'
+          : '<a class="rllink find" href="'+STORES[0].u(item.title)+'" target="_blank">🔍 去誠品找這本書 ↗</a>')
         +'<div class="cardfoot"><div></div><button class="likebtn'+(liked?" liked":"")+'" onclick="likeBook(\''+item.title.replace(/'/g,"\\'")+'\',\''+(latest.age||"")+'\',\''+(latest.url||"")+'\')">'+(liked?'💜':'👍')+' '+item.count+'</button></div>'
         +'</div></div></div>';
     });
@@ -500,7 +507,9 @@ function R(){
         h+='<div class="card promo"><div class="promoicon">🏆</div><div class="bd">'
           +'<div class="bt">'+x.title+'<span class="bg-" style="--p:#FFE9B8;--c:#9A6B2C">讀者票選</span></div>'
           +'<div class="bx">"'+x.reason+'"</div>'
-          +(x.url?'<a class="rllink" href="'+x.url+'" target="_blank">查看書籍連結 ↗</a>':'')
+          +(x.url
+            ? '<a class="rllink" href="'+x.url+'" target="_blank">查看書籍連結 ↗</a>'
+            : '<a class="rllink find" href="'+STORES[0].u(x.title)+'" target="_blank">🔍 去誠品找這本書 ↗</a>')
           +'<div class="cardfoot"><button class="likebtn'+(liked?" liked":"")+'" onclick="likeBook(\''+x.title.replace(/'/g,"\\'")+'\',\''+g+'\',\''+(x.url||"")+'\')">'+(liked?'💜':'👍')+' '+x.count+'</button></div>'
           +'</div></div>';
       });
