@@ -86,8 +86,8 @@ async function searchKingstone(q) {
 }
 
 // Google 圖書官方目錄天生不會收錄玩具周邊，資料品質比爬蟲猜測可靠，設為優先來源
-// 用金鑰放在 Vercel 環境變數（GOOGLE_BOOKS_API_KEY），不寫死在公開程式碼裡
-const GOOGLE_BOOKS_KEY = process.env.GOOGLE_BOOKS_API_KEY;
+// 用金鑰放在 Vercel 環境變數（SENBEIBOOKS_API_KEY），不寫死在公開程式碼裡
+const GOOGLE_BOOKS_KEY = process.env.SENBEIBOOKS_API_KEY;
 
 function isTaiwanISBN(item) {
   const ids = (item.volumeInfo && item.volumeInfo.industryIdentifiers) || [];
