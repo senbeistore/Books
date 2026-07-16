@@ -24,9 +24,10 @@ function isTaiwanISBN(item) {
 }
 
 async function callGoogleBooksOnce(q) {
-  // 恢復 intitle: 前綴：確保只搜書名符合的書，避免撈到內文提到相同字詞的不相關書籍
-  // （503 問題已靠下面的自動重試解決，不是 intitle: 造成的）
-  const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent('intitle:' + q)
+  // 不用 intitle: 前綴。實測證據：v12（純文字查詢）成功回傳，v13（加上 intitle:）立刻 503，
+  // 同一支金鑰、同一本書、同一時間，唯一差別就是這個前綴 → intitle: 就是 503 的成因。
+  // 改用純文字查詢確保能通，混進來的不相關結果交給下面的相關度過濾處理。
+  const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q)
     + '&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 5000);
@@ -90,7 +91,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 13, source: 'google',
+    v: 14, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
