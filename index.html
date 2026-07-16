@@ -100,6 +100,10 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .rlreason{font-size:11px;color:#7A6553;line-height:1.6;margin-top:5px;padding-top:5px;border-top:1px solid #F6EBDF}
 .rllink{font-size:10px;color:#B08FD4;text-decoration:none;display:inline-block;margin-top:5px;font-weight:700}
 .rlme{background:#FBF6FF;border:1.5px solid #E4D9EE;color:#B08FD4;font-size:10px;font-weight:700;border-radius:9px;padding:5px 10px;margin-top:7px;cursor:pointer;font-family:inherit}
+.scrapebox{border-radius:10px;padding:8px 10px;font-size:10.5px;line-height:1.6;margin:6px 0}
+.scrapebox.loading{background:#F6F1FC;color:#B08FD4}
+.scrapebox.ok{background:#EFF9F0;color:#4C8A57;font-weight:600}
+.scrapebox.warn{background:#FFF3D9;color:#9A6B2C}
 .loading{text-align:center;padding:34px 0;color:#E0C9B4;font-size:11px}
 
 /* ===== 品牌落款 ===== */
@@ -134,89 +138,146 @@ const save=()=>{try{localStorage.setItem("sb_read4",JSON.stringify([...D]))}catc
 const dnOf=k=>BOOKS[k].s.filter(b=>D.has(b.id)).length+BOOKS[k].o.filter(b=>D.has(b.id)).length;
 const totOf=k=>BOOKS[k].s.length+BOOKS[k].o.length;
 
-// ===== 讀者推薦（雲端共用資料）=====
+// ===== 讀者推薦（Vercel爬蟲 + Google表單 + CSV榜單）=====
+const SCRAPE_API = "https://books-sage-kappa.vercel.app/api/scrape";
+const FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSfkxW-gfV2xG7lyEMjE6zGqfaOjTi2Kv8ujDci7Otxvk3GYIA/formResponse";
+const FORM_ENTRY = {title:"entry.373226354", author:"entry.1161122051", publisher:"entry.1768033016", url:"entry.499876894", reason:"entry.1114102349", age:"entry.1869428649"};
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZzwo4T2NccY0dxYmy9B8q3CMmYIZqyzkYXtAJXNlNTjBU2bj1MIheElBPwSZvxSL5IVU15ek5l9zR/pub?output=csv";
+
 let RECS=null, recLoading=false;
-let mySubs=new Set();
-try{const s=localStorage.getItem("sb_mysubs");if(s)mySubs=new Set(JSON.parse(s))}catch(e){}
+let scrapeResult=null, scrapeState="idle"; // idle | loading | found | notfound
+
+function parseCSV(text){
+  const rows=[]; let row=[], field="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else q=false; }
+      else field+=c;
+    } else {
+      if(c==='"') q=true;
+      else if(c===','){ row.push(field); field=""; }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+      else if(c==='\r'){ /* skip */ }
+      else field+=c;
+    }
+  }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
 
 async function loadRecs(){
   recLoading=true; R();
   try{
-    const res = await window.storage.list("rec:", true);
-    const items=[];
-    if(res && res.keys){
-      for(const k of res.keys){
-        try{ const r=await window.storage.get(k, true); if(r) items.push({key:k,...JSON.parse(r.value)}); }catch(e){}
-      }
-    }
-    RECS=items;
+    const res=await fetch(CSV_URL);
+    const text=await res.text();
+    const rows=parseCSV(text).filter(r=>r.length>=7 && r[1]);
+    RECS=rows.slice(1).map(r=>({ts:r[0],title:r[1],author:r[2],publisher:r[3],url:r[4],reason:r[5],age:r[6]}));
   }catch(e){ RECS=[]; }
   recLoading=false; R();
 }
 
-function normTitle(t){ return t.trim().replace(/\s+/g,""); }
+const SUFFIX_WORDS=["硬頁版","精裝版","平裝版","無注音版","注音版","雙語版","中英雙語版","典藏版","全新版","經典版","修訂版","增訂版","紀念版","限量版","特別版","二版","三版","四版","新版","初版","再版","套組","套書","合輯","精選集","系列"];
+function normTitle(raw){
+  let t=(raw||"").trim();
+  t=t.replace(/[（(][^）)]*[）)]/g,"");
+  t=t.replace(/[0-9０-９]+週年/g,"");
+  SUFFIX_WORDS.forEach(w=>{ t=t.split(w).join(""); });
+  return t.replace(/\s+/g,"").trim();
+}
 
 function aggregateRecs(){
   if(!RECS) return [];
   const map={};
   RECS.forEach(r=>{
-    const key=normTitle(r.title);
+    const key=normTitle(r.title)||r.title.trim();
     if(!map[key]) map[key]={title:r.title.trim(), items:[], count:0};
     map[key].items.push(r);
     map[key].count++;
   });
-  return Object.values(map).sort((a,b)=>b.count-a.count || (b.items[0].ts||0)-(a.items[0].ts||0));
+  return Object.values(map).sort((a,b)=>b.count-a.count);
 }
 
-async function submitRec(){
-  const t=document.getElementById("rf-title").value.trim();
+async function checkUrl(){
+  const u=document.getElementById("rf-url").value.trim();
+  const box=document.getElementById("rf-scrape-box");
+  if(!u){ box.innerHTML=""; scrapeResult=null; scrapeState="idle"; updateSubmitState(); return; }
+  scrapeState="loading";
+  box.innerHTML='<div class="scrapebox loading">🔍 正在確認書籍資訊…</div>';
+  updateSubmitState();
+  try{
+    const res=await fetch(SCRAPE_API+"?url="+encodeURIComponent(u));
+    const data=await res.json();
+    if(data && data.title){
+      scrapeResult={title:data.title, author:data.author||"", publisher:data.publisher||""};
+      scrapeState="found";
+      box.innerHTML='<div class="scrapebox ok">✓ 系統確認：《'+scrapeResult.title+'》'
+        +(scrapeResult.author?'　作者 '+scrapeResult.author:'')
+        +(scrapeResult.publisher?'　'+scrapeResult.publisher:'')+'</div>';
+    } else {
+      scrapeResult=null; scrapeState="notfound";
+      box.innerHTML='<div class="scrapebox warn">⚠️ 抓不到這個網址的書籍資訊，麻煩手動填書名</div><label>書名</label><input id="rf-title" placeholder="請輸入書名" oninput="updateSubmitState()">';
+    }
+  }catch(e){
+    scrapeResult=null; scrapeState="notfound";
+    box.innerHTML='<div class="scrapebox warn">⚠️ 抓不到這個網址的書籍資訊，麻煩手動填書名</div><label>書名</label><input id="rf-title" placeholder="請輸入書名" oninput="updateSubmitState()">';
+  }
+  updateSubmitState();
+}
+
+function updateSubmitState(){
+  const btn=document.getElementById("rf-btn");
+  if(!btn) return;
+  const u=document.getElementById("rf-url")?document.getElementById("rf-url").value.trim():"";
+  const rs=document.getElementById("rf-reason")?document.getElementById("rf-reason").value.trim():"";
+  const ag=document.getElementById("rf-age")?document.getElementById("rf-age").value:"";
+  const titleOk = scrapeState==="found" || (scrapeState==="notfound" && document.getElementById("rf-title") && document.getElementById("rf-title").value.trim());
+  btn.disabled = !(u && rs && ag && titleOk && scrapeState!=="loading");
+}
+
+function submitRec(){
   const u=document.getElementById("rf-url").value.trim();
   const rs=document.getElementById("rf-reason").value.trim();
   const ag=document.getElementById("rf-age").value;
-  const btn=document.getElementById("rf-btn");
   const msg=document.getElementById("rf-msg");
-  if(!t || !rs || !ag){ msg.textContent="書名、適合年齡、推薦原因都要填喔"; msg.className="msg err"; return; }
-  btn.disabled=true; btn.textContent="送出中…";
-  try{
-    const id=Date.now()+"-"+Math.random().toString(36).slice(2,8);
-    const data={title:t,url:u,reason:rs,age:ag,ts:Date.now()};
-    const result=await window.storage.set("rec:"+id, JSON.stringify(data), true);
-    if(!result) throw new Error("儲存失敗");
-    mySubs.add(id); try{localStorage.setItem("sb_mysubs",JSON.stringify([...mySubs]))}catch(e){}
-    document.getElementById("rf-title").value="";
-    document.getElementById("rf-url").value="";
-    document.getElementById("rf-reason").value="";
-    document.getElementById("rf-age").value="";
-    msg.textContent="✓ 推薦成功，謝謝分享！";
-    msg.className="msg ok";
-    await loadRecs();
-  }catch(e){
-    msg.textContent="送出失敗，請檢查網路後再試一次";
-    msg.className="msg err";
-  }
-  btn.disabled=false; btn.textContent="送出推薦";
-}
+  let title="", author="", publisher="";
+  if(scrapeState==="found" && scrapeResult){ title=scrapeResult.title; author=scrapeResult.author; publisher=scrapeResult.publisher; }
+  else { const ti=document.getElementById("rf-title"); title=ti?ti.value.trim():""; }
+  if(!u||!rs||!ag||!title){ msg.textContent="網址、推薦原因、適合年齡都要填喔"; msg.className="msg err"; return; }
 
-async function meAlso(title,age){
-  try{
-    const id=Date.now()+"-"+Math.random().toString(36).slice(2,8);
-    await window.storage.set("rec:"+id, JSON.stringify({title,url:"",reason:"（跟其他人一樣推薦這本）",age:age||"",ts:Date.now()}), true);
-    await loadRecs();
-  }catch(e){}
+  const iframe=document.getElementById("hidden_iframe");
+  const form=document.createElement("form");
+  form.action=FORM_ACTION; form.method="POST"; form.target="hidden_iframe"; form.style.display="none";
+  const fields={ [FORM_ENTRY.title]:title, [FORM_ENTRY.author]:author, [FORM_ENTRY.publisher]:publisher, [FORM_ENTRY.url]:u, [FORM_ENTRY.reason]:rs, [FORM_ENTRY.age]:ag };
+  Object.entries(fields).forEach(([k,v])=>{ const inp=document.createElement("input"); inp.type="hidden"; inp.name=k; inp.value=v; form.appendChild(inp); });
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(()=>document.body.removeChild(form), 1000);
+
+  msg.textContent="✓ 推薦已送出，謝謝分享！榜單稍後會更新";
+  msg.className="msg ok";
+  document.getElementById("rf-url").value="";
+  document.getElementById("rf-reason").value="";
+  document.getElementById("rf-age").value="";
+  document.getElementById("rf-scrape-box").innerHTML="";
+  scrapeResult=null; scrapeState="idle";
+  document.getElementById("rf-btn").disabled=true;
+  setTimeout(loadRecs, 4000);
 }
 
 let recAgeFilter="";
 function setRecAgeFilter(a){ recAgeFilter=a; R(); }
 
 function recView(){
-  let h='<div class="rechd"><b>💌 讀者推薦榜</b><p>目標是湊滿 1000 本書單，現在還差很多——你推薦的書會直接補進來。推薦人數越多排越前面，這裡所有人都看得到。</p></div>';
+  let h='<div class="rechd"><b>💌 讀者推薦榜</b><p>目標是湊滿 1000 本書單，現在還差很多——你推薦的書會直接補進來。貼上網址，系統會自動確認書名、作者、出版社。</p></div>';
   h+='<div class="form">'
-    +'<label>書名</label><input id="rf-title" placeholder="例如：好餓的毛毛蟲">'
-    +'<label>適合年齡</label><select id="rf-age"><option value="">請選擇</option>'+AG.map(k=>'<option value="'+k+'">'+T[k].e+' '+k+'</option>').join('')+'</select>'
-    +'<label>網址（選填，博客來／誠品連結都可以）</label><input id="rf-url" placeholder="https://...">'
-    +'<label>推薦原因</label><textarea id="rf-reason" placeholder="為什麼想推薦這本書？"></textarea>'
-    +'<button class="submitbtn" id="rf-btn" onclick="submitRec()">送出推薦</button>'
-    +'<div class="msg" id="rf-msg"></div></div>';
+    +'<label>網址（博客來／誠品連結都可以）</label><input id="rf-url" placeholder="https://..." onblur="checkUrl()" oninput="updateSubmitState()">'
+    +'<div id="rf-scrape-box"></div>'
+    +'<label>適合年齡</label><select id="rf-age" onchange="updateSubmitState()"><option value="">請選擇</option>'+AG.map(k=>'<option value="'+k+'">'+T[k].e+' '+k+'</option>').join('')+'</select>'
+    +'<label>推薦原因</label><textarea id="rf-reason" placeholder="為什麼想推薦這本書？" oninput="updateSubmitState()"></textarea>'
+    +'<button class="submitbtn" id="rf-btn" onclick="submitRec()" disabled>送出推薦</button>'
+    +'<div class="msg" id="rf-msg"></div></div>'
+    +'<iframe name="hidden_iframe" id="hidden_iframe" style="display:none"></iframe>';
   if(recLoading && RECS===null){
     h+='<div class="loading">載入讀者推薦中…</div>';
   } else {
@@ -232,14 +293,14 @@ function recView(){
       const at=latest.age && T[latest.age] ? T[latest.age] : null;
       h+='<div class="rlitem"><div class="rlrow"><div class="rlrank">'+(i+1)+'</div><div class="bd">'
         +'<div class="rltitle">'+item.title+(at?'<span class="agetag" style="background:'+at.p+';color:'+at.c+'">'+at.e+' '+latest.age+'</span>':'')+'</div>'
+        +(latest.author?'<div class="ba">'+latest.author+(latest.publisher?' ・ '+latest.publisher:'')+'</div>':'')
         +'<div class="rlcount">'+item.count+' 人推薦</div>'
         +'<div class="rlreason">"'+latest.reason+'"</div>'
         +(latest.url?'<a class="rllink" href="'+latest.url+'" target="_blank">查看書籍連結 ↗</a>':'')
-        +'<br><button class="rlme" onclick="meAlso(\''+item.title.replace(/'/g,"\\'")+'\',\''+(latest.age||'')+'\')">👍 我也推薦這本</button>'
         +'</div></div></div>';
     });
   }
-  h+='<div class="ft">推薦資料儲存在雲端，重新整理不會消失<br>仙貝童裝・讀者共同書單</div>';
+  h+='<div class="ft">資料存在 Google 表單，送出後無法修改<br>仙貝童裝・讀者共同書單</div>';
   return h;
 }
 
