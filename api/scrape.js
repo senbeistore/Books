@@ -23,18 +23,32 @@ function isTaiwanISBN(item) {
   return ids.some(x => /^978(957|986)/.test((x.identifier || '').replace(/-/g, '')));
 }
 
+async function callGoogleBooksOnce(q) {
+  // 拿掉 intitle: 前綴和 langRestrict：這兩個沒有實質過濾效果（langRestrict 不分繁簡，
+  // intitle: 只是全文比對的變體），純文字查詢更單純，懷疑是這兩個參數組合誘發 503
+  const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q)
+    + '&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    return await fetch(u, {
+      headers: { Referer: 'https://books-senbei.vercel.app/' },
+      signal: ctrl.signal
+    });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function searchGoogleBooks(q) {
   if (!GOOGLE_BOOKS_KEY) return { items: [], reason: 'no-key' };
   try {
-    const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent('intitle:' + q)
-      + '&langRestrict=zh&country=TW&maxResults=20&key=' + GOOGLE_BOOKS_KEY;
-    // 金鑰限制了只接受這個網站的請求，伺服器對伺服器呼叫不會自動帶 Referer，要手動補上
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 5000);
-    const r = await fetch(u, {
-      headers: { Referer: 'https://books-senbei.vercel.app/' },
-      signal: ctrl.signal
-    }).finally(() => clearTimeout(t));
+    let r = await callGoogleBooksOnce(q);
+    if (r.status === 503) {
+      // Google 圖書後端偶爾短暫不穩，稍等後重試一次再放棄
+      await new Promise(res => setTimeout(res, 800));
+      r = await callGoogleBooksOnce(q);
+    }
     if (!r.ok) {
       const body = await r.text();
       return { items: [], reason: 'http-' + r.status, detail: body.slice(0, 200) };
@@ -42,14 +56,22 @@ async function searchGoogleBooks(q) {
     const data = await r.json();
     if (!data.items) return { items: [], reason: 'no-items', totalItems: data.totalItems || 0 };
 
+    // 優先用台灣 ISBN 篩選（978957／978986 開頭）；但很多圖書館目錄型紀錄（標示「無預覽」）
+    // 根本沒填 ISBN，硬性要求會把這些正常書一起濾掉。改成：有 ISBN 資料就用它判斷，
+    // 沒有 ISBN 資料的則退而求其次，只憑書名含中文字保留（反正 Google 圖書天生不會混進玩具）
+    const hasChinese = (t) => /[\u4e00-\u9fff]/.test(t || '');
+    const hasIdentifiers = (v) => ((v.volumeInfo && v.volumeInfo.industryIdentifiers) || []).length > 0;
+
     const seen = new Set(), items = [];
-    for (const v of data.items.filter(isTaiwanISBN)) {
+    for (const v of data.items) {
       const ti = v.volumeInfo && v.volumeInfo.title;
       if (!ti || seen.has(ti)) continue;
+      if (hasIdentifiers(v) && !isTaiwanISBN(v)) continue; // 有 ISBN 但不是台版，排除
+      if (!hasChinese(ti)) continue; // 沒有中文字的（純日文/英文書名）不收
       seen.add(ti);
       items.push({ title: ti, url: '' });
     }
-    return { items, reason: items.length ? 'ok' : 'no-tw-isbn', totalItems: data.totalItems };
+    return { items, reason: items.length ? 'ok' : 'no-match', totalItems: data.totalItems };
   } catch (e) {
     return { items: [], reason: 'error:' + String(e).slice(0, 60) };
   }
@@ -58,7 +80,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 10, source: 'google',
+    v: 12, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
