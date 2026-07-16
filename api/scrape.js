@@ -112,58 +112,9 @@ async function scrapeTitle(url, res) {
   }
 }
 
-// 診斷用：直接測 Google Books API 在真實伺服器環境能不能用、台灣童書涵蓋率如何
-// 用法：/api/scrape?gb=書名
-async function testGoogleBooks(q, res) {
-  try {
-    const u = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent('intitle:' + q) + '&country=TW&maxResults=10';
-    const r = await fetchWithTimeout(u, 6000);
-    const status = r.status;
-    const text = await r.text();
-    let data = null;
-    try { data = JSON.parse(text); } catch(e) {}
-    if (!data || !data.items) {
-      return res.status(200).json({ gb: true, httpStatus: status, totalItems: (data && data.totalItems) || 0, items: [], raw: text.slice(0, 300) });
-    }
-    const items = data.items.map(v => ({
-      title: v.volumeInfo && v.volumeInfo.title,
-      authors: v.volumeInfo && v.volumeInfo.authors,
-      publisher: v.volumeInfo && v.volumeInfo.publisher,
-      lang: v.volumeInfo && v.volumeInfo.language
-    }));
-    return res.status(200).json({ gb: true, httpStatus: status, totalItems: data.totalItems, items });
-  } catch (e) {
-    return res.status(200).json({ gb: true, error: String(e) });
-  }
-}
-
-// 診斷用：不透過 API、直接爬 Google 圖書網站搜尋頁（跟爬金石堂搜尋頁同個思路）
-// 用法：/api/scrape?gbweb=書名 → 回傳抓到的候選數量與前幾筆，方便判斷網頁結構
-async function testGoogleBooksWeb(q, res) {
-  try {
-    const u = 'https://books.google.com/books?q=' + encodeURIComponent(q) + '&hl=zh-TW&country=TW';
-    const r = await fetchWithTimeout(u, 6000);
-    const html = await r.text();
-
-    // 嘗試幾種常見的 Google 圖書搜尋結果連結格式，看哪種抓得到東西
-    const patterns = {
-      bookIdLinks: [...html.matchAll(/href="[^"]*\/books\?id=([a-zA-Z0-9_-]+)[^"]*"/g)].length,
-      titleTags: [...html.matchAll(/<h3[^>]*>([^<]{2,100})<\/h3>/g)].map(m=>m[1]).slice(0,5),
-      hasReactRoot: /__NEXT_DATA__|data-react|window\.__INITIAL/.test(html),
-      htmlLength: html.length,
-      snippet: html.replace(/\s+/g,' ').slice(0, 500)
-    };
-    return res.status(200).json({ gbweb: true, url: u, patterns });
-  } catch (e) {
-    return res.status(200).json({ gbweb: true, error: String(e) });
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  const { url, q, gb, gbweb } = req.query;
-  if (gbweb) return testGoogleBooksWeb(gbweb, res);
-  if (gb) return testGoogleBooks(gb, res);
+  const { url, q } = req.query;
   if (q) return searchBooks(q, res);
   if (url) return scrapeTitle(url, res);
   return res.status(400).json({ found: false });
