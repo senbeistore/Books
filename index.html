@@ -263,6 +263,13 @@ const SCRAPE_API = "https://books-senbei.vercel.app/api/scrape";
 const BADWORDS = ["幹你","幹妳","幹您","靠北","靠腰","機掰","雞掰","機八","雞巴","三小","媽的","他媽","她媽","恁娘","幹死","幹爆","操你","肏","去死","智障","低能","娘炮","婊子","賤人","賤貨","屌你","王八蛋","雜種","畜生","滾蛋","神經病"];
 function hasBadWord(s){ const t=(s||"").replace(/\s/g,""); return BADWORDS.some(w=>t.includes(w)); }
 
+// 書名會被塞進 innerHTML，必須轉義 HTML 特殊字元，避免書名裡的符號破壞畫面或被當成標籤執行
+function esc(s){
+  return String(s==null?"":s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
 let pickedUrl="", cands=[];
 
 async function searchBook(){
