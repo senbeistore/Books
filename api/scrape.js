@@ -57,30 +57,48 @@ async function searchGoogleBooks(q) {
     const data = await r.json();
     if (!data.items) return { items: [], reason: 'no-items', totalItems: data.totalItems || 0 };
 
-    // 優先用台灣 ISBN 篩選（978957／978986 開頭）；但很多圖書館目錄型紀錄（標示「無預覽」）
-    // 根本沒填 ISBN，硬性要求會把這些正常書一起濾掉。改成：有 ISBN 資料就用它判斷，
-    // 沒有 ISBN 資料的則退而求其次，只憑書名含中文字保留（反正 Google 圖書天生不會混進玩具）
-    const hasChinese = (t) => /[\u4e00-\u9fff]/.test(t || '');
     const hasIdentifiers = (v) => ((v.volumeInfo && v.volumeInfo.industryIdentifiers) || []).length > 0;
-    // intitle: 有時還是會混進相關度低的書，用查詢字詞跟書名的重疊比例再把關一次
     const ql = q.trim();
+    const isEnglishQuery = /^[a-zA-Z0-9\s\-'!?.,:&]+$/.test(ql);
+
+    // 相關度把關：中文用「字元重疊」，英文用「單詞重疊」
+    // （英文若用字元比對會太寬鬆，caterpillar 跟 capital 都會被當成相關）
     const relevant = (t) => {
-      const clean = t.replace(/[！!？?。，,、：:（）()「」『』【】\s]/g, '');
-      const qClean = ql.replace(/[！!？?。，,、：:（）()「」『』【】\s]/g, '');
+      const strip = (s) => s.replace(/[！!？?。，,、：:（）()「」『』【】\s\-–—_]/g, '');
+      if (isEnglishQuery) {
+        const words = ql.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        if (!words.length) return true;
+        const tl = t.toLowerCase();
+        return words.filter(w => tl.includes(w)).length / words.length >= 0.6;
+      }
+      const clean = strip(t), qClean = strip(ql);
       if (!qClean) return true;
-      const overlap = [...qClean].filter(ch => clean.includes(ch)).length;
-      return overlap / qClean.length >= 0.6; // 查詢字詞至少 6 成要出現在書名裡
+      return [...qClean].filter(ch => clean.includes(ch)).length / qClean.length >= 0.6;
+    };
+
+    // 中文查詢只收台版（擋簡體）；英文查詢放行原文版（英文原版 ISBN 是 978-0/978-1 開頭，
+    // 硬套台灣 ISBN 規則會把英文繪本全部誤殺）
+    const isbnOk = (v) => {
+      if (!hasIdentifiers(v)) return true; // 沒 ISBN 資料的（圖書館目錄型紀錄）不誤殺
+      if (isEnglishQuery) return true;
+      return isTaiwanISBN(v);
     };
 
     const seen = new Set(), items = [];
     for (const v of data.items) {
-      const ti = v.volumeInfo && v.volumeInfo.title;
+      const info = v.volumeInfo || {};
+      const ti = info.title;
       if (!ti || seen.has(ti)) continue;
-      if (hasIdentifiers(v) && !isTaiwanISBN(v)) continue; // 有 ISBN 但不是台版，排除
-      if (!hasChinese(ti)) continue; // 沒有中文字的（純日文/英文書名）不收
-      if (!relevant(ti)) continue; // 書名跟查詢字詞重疊太少，多半是不相關的書
+      if (!isbnOk(v)) continue;
+      if (!relevant(ti)) continue; // 書名跟查詢重疊太少，多半不相關
       seen.add(ti);
-      items.push({ title: ti, url: '' });
+      items.push({
+        title: ti,
+        url: '',
+        author: (info.authors || []).join('、'),
+        publisher: info.publisher || '',
+        year: (info.publishedDate || '').slice(0, 4)
+      });
     }
     return { items, reason: items.length ? 'ok' : 'no-match', totalItems: data.totalItems };
   } catch (e) {
@@ -91,7 +109,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 14, source: 'google',
+    v: 16, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
