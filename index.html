@@ -256,7 +256,7 @@ function aggregateRecs(){
   return Object.values(map).sort((a,b)=>b.count-a.count);
 }
 
-const SCRAPE_API = "https://books-sage-kappa.vercel.app/api/scrape";
+const SCRAPE_API = "https://books-senbei.vercel.app/api/scrape";
 // 明確髒話與歧視語，不放「垃圾」「白痴」這種正常書評可能用到的詞
 const BADWORDS = ["幹你","幹妳","幹您","靠北","靠腰","機掰","雞掰","機八","雞巴","三小","媽的","他媽","她媽","恁娘","幹死","幹爆","操你","肏","去死","智障","低能","娘炮","婊子","賤人","賤貨","屌你","王八蛋","雜種","畜生","滾蛋","神經病"];
 function hasBadWord(s){ const t=(s||"").replace(/\s/g,""); return BADWORDS.some(w=>t.includes(w)); }
