@@ -39,11 +39,58 @@ async function callGoogleBooksOnce(q) {
   }
 }
 
+// 金石堂驗證模式：台灣書店的中文童書資料遠比 Google 圖書完整
+// （Google 圖書查不到的信誼/上誼/小魯繪本，金石堂幾乎都有）
+// 之前拔掉金石堂是因為「搜尋書名找書」時會混進玩具，但驗證書名時玩具不會叫「好可愛的臉」，不影響
+async function verifyKingstone(q, res) {
+  const url = 'https://www.kingstone.com.tw/search/key/' + encodeURIComponent(q);
+  let html = '';
+  try {
+    const r = await fetchWithTimeout(url, 6000);
+    if (!r.ok) return res.status(200).json({ v: 19, reason: 'http-' + r.status, items: [] });
+    html = await r.text();
+  } catch (e) {
+    return res.status(200).json({ v: 19, reason: 'timeout', items: [] });
+  }
+
+  try {
+    const items = [];
+    const seen = new Set();
+    // 書名：<h3 ...><a href="/basic/...">書名</a></h3>
+    const titleRe = /<h3[^>]*>\s*<a[^>]*href="[^"]*\/basic\/(\d+)[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+    let m;
+    const marks = [];
+    while ((m = titleRe.exec(html)) !== null) marks.push({ idx: m.index, id: m[1], raw: m[2] });
+
+    for (let i = 0; i < marks.length && items.length < 10; i++) {
+      const title = decode(marks[i].raw.replace(/<[^>]+>/g, ''));
+      if (!title || seen.has(title)) continue;
+      seen.add(title);
+      // 只讀「這一筆」的區塊：從這個書名到下一個書名為止，避免抓到隔壁商品的資料
+      const end = i + 1 < marks.length ? marks[i + 1].idx : marks[i].idx + 2500;
+      const tail = html.slice(marks[i].idx, end);
+      const au = tail.match(/SearchLink\('([^']+)','','au'\)/);
+      const bl = tail.match(/SearchLink\('([^']+)','','bl'\)/);
+
+      items.push({
+        title: title,
+        author: au ? decode(au[1]) : '',
+        publisher: bl ? decode(bl[1]) : '',
+        id: marks[i].id,
+        ebook: /【電子書】/.test(title)
+      });
+    }
+    return res.status(200).json({ v: 19, reason: items.length ? 'ok' : 'no-items', items });
+  } catch (e) {
+    return res.status(200).json({ v: 19, reason: 'parse-error:' + String(e).slice(0, 60), items: [] });
+  }
+}
+
 // 驗證模式：專供書庫除錯用，不做相關度過濾
 // 理由：如果書庫的書名本身就打錯了，相關度過濾反而會把「正確的那本書」擋掉，
 // 導致永遠驗證不出錯誤。這裡回傳 Google 原始結果，由前端自己比對。
 async function verifyBook(q, res) {
-  if (!GOOGLE_BOOKS_KEY) return res.status(200).json({ v: 18, reason: 'no-key', items: [] });
+  if (!GOOGLE_BOOKS_KEY) return res.status(200).json({ v: 19, reason: 'no-key', items: [] });
   let r = null, lastStatus = 0;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -55,10 +102,10 @@ async function verifyBook(q, res) {
       r = null;
     } catch (e) { r = null; }
   }
-  if (!r || !r.ok) return res.status(200).json({ v: 18, reason: lastStatus ? 'http-' + lastStatus : 'timeout', items: [] });
+  if (!r || !r.ok) return res.status(200).json({ v: 19, reason: lastStatus ? 'http-' + lastStatus : 'timeout', items: [] });
   try {
     const data = await r.json();
-    if (!data.items) return res.status(200).json({ v: 18, reason: 'no-items', items: [] });
+    if (!data.items) return res.status(200).json({ v: 19, reason: 'no-items', items: [] });
     const items = data.items.slice(0, 8).map(x => {
       const i = x.volumeInfo || {};
       const ids = (i.industryIdentifiers || []).map(y => y.identifier);
@@ -72,9 +119,9 @@ async function verifyBook(q, res) {
         tw: ids.some(y => /^978(957|986)/.test(y.replace(/-/g, '')))
       };
     });
-    return res.status(200).json({ v: 18, reason: 'ok', items });
+    return res.status(200).json({ v: 19, reason: 'ok', items });
   } catch (e) {
-    return res.status(200).json({ v: 18, reason: 'parse-error', items: [] });
+    return res.status(200).json({ v: 19, reason: 'parse-error', items: [] });
   }
 }
 
@@ -165,7 +212,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 18, source: 'google',
+    v: 19, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
@@ -198,7 +245,8 @@ async function scrapeTitle(url, res) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  const { url, q, verify } = req.query;
+  const { url, q, verify, ks } = req.query;
+  if (ks) return verifyKingstone(ks, res);
   if (verify) return verifyBook(verify, res);
   if (q) return searchBooks(q, res);
   if (url) return scrapeTitle(url, res);
