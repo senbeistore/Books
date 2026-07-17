@@ -28,6 +28,30 @@ h1{font-size:17px;margin:0 0 3px;display:flex;align-items:center;gap:6px}
 .sw.on{background:#5CA86B}
 .sw i{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .sw.on i{left:24px}
+.cfg-warn{background:#FFF4E5;border:1px solid #F5D9A8;border-radius:9px;padding:8px 10px;font-size:11px;color:#9A7038;line-height:1.6;margin-top:8px}
+.cfg-warn b{color:#C4553A}
+.cfg-prev{margin-top:9px;border-radius:11px;padding:9px 11px;text-align:center;font-size:11px;line-height:1.6}
+.cfg-prev.cp{background:linear-gradient(135deg,#FFF0DC,#FFE4C4);border:1.5px dashed #E8A96F;color:#8A6540}
+.cfg-prev.ig{background:linear-gradient(135deg,#FDEEF2,#FBE0E8);border:1.5px dashed #E8A0B8;color:#A0566F}
+.cfg-prev b{display:block;font-size:12px;margin-bottom:2px}
+.cfg-prevlbl{font-size:10px;color:#B5A695;margin-top:7px;margin-bottom:3px;text-align:left}
+.cfg{background:#fff;border:1px solid #EFE5DA;border-radius:14px;padding:12px 13px;margin-bottom:12px}
+.cfg-hd{font-size:13.5px;font-weight:700;color:#4A3B2F;margin-bottom:8px}
+.cfg-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cfg-txt{font-size:12.5px;color:#6B5B4F;flex:1}
+.cfg-txt b{color:#D97757}
+.cfg-note{font-size:11px;color:#B5A695;line-height:1.65;margin-top:9px;padding-top:8px;border-top:1px solid #F5EFE8}
+.cfg-note b{color:#8A7560}
+.sw{position:relative;width:48px;height:27px;border-radius:14px;border:none;background:#DDD0C2;cursor:pointer;transition:.2s;flex-shrink:0;padding:0}
+.sw.on{background:#5CA86B}
+.sw:disabled{opacity:.5}
+.sw i{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.sw.on i{left:24px}
+.cfg-prevlbl{font-size:10px;color:#B5A695;margin-top:9px;margin-bottom:3px}
+.cfg-prev{border-radius:11px;padding:9px 11px;text-align:center;font-size:11px;line-height:1.6}
+.cfg-prev.cp{background:linear-gradient(135deg,#FFF0DC,#FFE4C4);border:1.5px dashed #E8A96F;color:#8A6540}
+.cfg-prev.ig{background:linear-gradient(135deg,#FDEEF2,#FBE0E8);border:1.5px dashed #E8A0B8;color:#A0566F}
+.cfg-prev b{display:block;font-size:12px;margin-bottom:2px}
 .tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 .tab{flex-shrink:0;background:#fff;border:1.5px solid #EFE5DA;border-radius:11px;padding:8px 13px;font-size:12.5px;font-weight:700;color:#9B8B7A;cursor:pointer;font-family:inherit;white-space:nowrap}
 .tab.on{border-color:#D97757;background:#FFF3E6;color:#B85C3C}
@@ -79,10 +103,12 @@ h1{font-size:17px;margin:0 0 3px;display:flex;align-items:center;gap:6px}
     <div class="cfg">
       <div class="cfg-hd">🎁 童裝折價券</div>
       <div class="cfg-row">
-        <div class="cfg-txt" id="cfgtxt"></div>
+        <div class="cfg-txt" id="cfgtxt">讀取中…</div>
         <button class="sw" id="sw" onclick="toggleCoupon()"><i></i></button>
       </div>
-      <div class="cfg-note" id="cfgnote"></div>
+      <div class="cfg-prevlbl">客人會看到：</div>
+      <div class="cfg-prev" id="cfgprev"></div>
+      <div class="cfg-note">按下開關會直接送出設定，<b>全站約 5 分鐘後生效</b>，不用上傳任何檔案。<br>客人收藏的舊網址也一樣會跟著變。</div>
     </div>
     <div class="tabs" id="tabs"></div>
     <div class="bar">
@@ -92,12 +118,13 @@ h1{font-size:17px;margin:0 0 3px;display:flex;align-items:center;gap:6px}
       <span class="cnt" id="cnt"></span>
     </div>
     <div id="list"><div class="load">載入中…</div></div>
+    <iframe name="sink" style="display:none"></iframe>
     <div id="expo" style="display:none">
       <button class="btn" style="width:100%" onclick="mkHidden()">⬇️ 產生排除清單（hidden.json）</button>
       <textarea class="out" id="out" readonly placeholder="按上面的按鈕產生"></textarea>
       <button class="btn sec" style="width:100%;margin-top:7px" onclick="dlHidden()">下載 hidden.json</button>
       <div class="note" style="margin-top:9px">
-        把 <b>hidden.json</b> 傳到 GitHub 的 Books 專案最外層，跟 index.html 同一層。<br>折價券開關和隱藏清單都在這個檔案裡。
+        把 <b>hidden.json</b> 傳到 GitHub 的 Books 專案最外層，跟 index.html 同一層。
       </div>
     </div>
   </div>
@@ -110,9 +137,56 @@ const RP_TAG = "［除錯回報］";
 const SAY_TAG = "［讀者意見］";
 
 let ROWS = [], TAB = "rep", HIDE = new Set();
-// 折價券開關。存進 hidden.json 一起帶上去，網站讀同一份檔。
-let CFG = { coupon: true };
-try { const s = localStorage.getItem("sb_admin_cfg"); if (s) CFG = JSON.parse(s); } catch(e) {}
+
+// 折價券開關直接寫進 Google 表單，網站讀同一份 CSV 就知道。
+// 不用下載、不用上傳、不用重新部署，客人收藏的舊網址也吃得到。
+const FORM_ACTION = "https://docs.google.com/forms/d/e/1FAIpQLSfkxW-gfV2xG7lyEMjE6zGqfaOjTi2Kv8ujDci7Otxvk3GYIA/formResponse";
+const FORM_ENTRY = {title:"entry.373226354", author:"entry.1161122051", publisher:"entry.1768033016", url:"entry.499876894", reason:"entry.1114102349", age:"entry.1869428649"};
+const CFG_KEY = "__設定__";
+let COUPON = true;
+
+function postForm(fields){
+  const f = document.createElement("form");
+  f.action = FORM_ACTION; f.method = "POST"; f.target = "sink";
+  Object.keys(fields).forEach(function(k){
+    const i = document.createElement("input");
+    i.type = "hidden"; i.name = k; i.value = fields[k];
+    f.appendChild(i);
+  });
+  document.body.appendChild(f);
+  f.submit();
+  setTimeout(function(){ document.body.removeChild(f); }, 800);
+}
+
+function paintCfg(){
+  const sw = document.getElementById("sw");
+  if (sw) sw.className = "sw" + (COUPON ? " on" : "");
+  document.getElementById("cfgtxt").innerHTML = COUPON
+    ? '目前<b>發放中</b>：清單底下顯示每週折價碼，點了到賣場'
+    : '目前<b>不發放</b>：改成邀請追蹤 IG，點了到 @senbei.store';
+  document.getElementById("cfgprev").className = "cfg-prev " + (COUPON ? "cp" : "ig");
+  document.getElementById("cfgprev").innerHTML = COUPON
+    ? '<b>🎁 讀者專屬童裝折價券</b>SEN-03　點一下到賣場 ↗<br>滿 399 折 20'
+    : '<b>❤️ 歡迎追蹤我們！不定時分享免費小工具</b>@SENBEI.STORE　點一下到 IG ↗<br>伴你育兒路';
+}
+
+function toggleCoupon(){
+  COUPON = !COUPON;
+  const sw = document.getElementById("sw");
+  if (sw) sw.disabled = true;
+  postForm({
+    [FORM_ENTRY.title]: CFG_KEY,
+    [FORM_ENTRY.author]: "",
+    [FORM_ENTRY.publisher]: "",
+    [FORM_ENTRY.url]: "",
+    [FORM_ENTRY.reason]: COUPON ? "coupon:on" : "coupon:off",
+    [FORM_ENTRY.age]: ""
+  });
+  paintCfg();
+  document.getElementById("cfgtxt").innerHTML += '　<span style="color:#5CA86B;font-size:11px">✓ 已送出</span>';
+  setTimeout(function(){ if (sw) sw.disabled = false; paintCfg(); }, 1200);
+}
+
 try { const s = localStorage.getItem("sb_admin_hide"); if (s) HIDE = new Set(JSON.parse(s)); } catch(e) {}
 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -123,7 +197,6 @@ function unlock(){
   try { sessionStorage.setItem("sb_admin_ok", "1"); } catch(e) {}
   document.getElementById("lock").style.display = "none";
   document.getElementById("app").style.display = "block";
-  paintCfg();
   load();
 }
 try { if (sessionStorage.getItem("sb_admin_ok") === "1") { 
@@ -167,9 +240,14 @@ async function load(){
     const res = await fetch(CSV_URL + "&_=" + Date.now());
     const text = await res.text();
     const rows = parseCSV(text).filter(r => r.length >= 7 && r[1]);
-    ROWS = rows.slice(1).map(r => ({
+    const all = rows.slice(1).map(r => ({
       ts: r[0], title: r[1], author: r[2], publisher: r[3], url: r[4], reason: r[5], age: r[6]
-    })).reverse();
+    }));
+    // 設定列取最新的一筆，且不要出現在下面的清單裡
+    const cfg = all.filter(r => r.title === CFG_KEY);
+    if (cfg.length) COUPON = !/coupon\s*[:=]\s*off/i.test(String(cfg[cfg.length-1].reason || ""));
+    paintCfg();
+    ROWS = all.filter(r => r.title !== CFG_KEY).reverse();
     paint();
   } catch(e) {
     document.getElementById("list").innerHTML = '<div class="empty">讀不到資料<br><span style="font-size:11px">' + esc(e.message) + '</span></div>';
@@ -177,24 +255,6 @@ async function load(){
 }
 function reload(){ load(); }
 
-function paintCfg(){
-  const on = !!CFG.coupon;
-  const sw = document.getElementById("sw");
-  if (sw) sw.className = "sw" + (on ? " on" : "");
-  document.getElementById("cfgtxt").innerHTML = on
-    ? '目前<b>發放中</b>：購書清單會顯示每週折價碼，點了到賣場'
-    : '目前<b>不發放</b>：改成顯示邀請追蹤 IG，點了到 @senbei.store';
-  document.getElementById("cfgnote").textContent = on
-    ? "關掉之後，客人看到的是「❤️ 歡迎追蹤我們！不定時分享免費小工具」，不會是一張沒用的券。"
-    : "打開之後會恢復每週自動更新的折價碼（滿 399 折 20）。";
-  document.getElementById("expo").style.display = (HIDE.size || cfgChanged()) ? "block" : "none";
-}
-function cfgChanged(){ return CFG.coupon !== true; }
-function toggleCoupon(){
-  CFG.coupon = !CFG.coupon;
-  try { localStorage.setItem("sb_admin_cfg", JSON.stringify(CFG)); } catch(e) {}
-  paintCfg();
-}
 
 function paint(){
   const groups = { rep: [], say: [], rec: [] };
@@ -208,7 +268,7 @@ function paint(){
   const list = groups[TAB] || [];
   const hidCount = list.filter(r => HIDE.has(rid(r))).length;
   document.getElementById("cnt").textContent = list.length + " 筆" + (hidCount ? "・已隱藏 " + hidCount : "");
-  document.getElementById("expo").style.display = (HIDE.size || cfgChanged()) ? "block" : "none";
+  document.getElementById("expo").style.display = HIDE.size ? "block" : "none";
 
   if (!list.length) {
     document.getElementById("list").innerHTML = '<div class="empty">目前沒有資料</div>';
@@ -256,7 +316,7 @@ function clearPick(){
 function save(){ try { localStorage.setItem("sb_admin_hide", JSON.stringify([...HIDE])); } catch(e) {} }
 
 function buildOut(){
-  return { time: new Date().toISOString().slice(0, 16), config: CFG, hide: [...HIDE] };
+  return { time: new Date().toISOString().slice(0, 16), hide: [...HIDE] };
 }
 function mkHidden(){
   document.getElementById("out").value = JSON.stringify(buildOut(), null, 1);
@@ -272,7 +332,7 @@ function dlHidden(){
 }
 
 document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
-if (document.getElementById("app").style.display === "block") { paintCfg(); load(); }
+if (document.getElementById("app").style.display === "block") load();
 </script>
 </body>
 </html>
