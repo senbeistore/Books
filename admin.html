@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>1000本計畫・後台</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;background:#FAF7F2;color:#4A3B2F;padding:14px 12px calc(30px + env(safe-area-inset-bottom));-webkit-text-size-adjust:100%}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:17px;margin:0 0 3px;display:flex;align-items:center;gap:6px}
+.sub{font-size:11.5px;color:#9B8B7A;margin-bottom:14px}
+.lock{background:#fff;border:1px solid #EFE5DA;border-radius:14px;padding:22px 16px;text-align:center}
+.lock input{width:100%;max-width:230px;border:1.5px solid #EADFD3;border-radius:10px;padding:11px;font-size:15px;text-align:center;font-family:inherit;margin:10px 0}
+.lock input:focus{outline:none;border-color:#F0A868}
+.btn{background:linear-gradient(135deg,#E8927C,#D97757);color:#fff;border:none;border-radius:11px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:active{transform:scale(.98)}
+.btn.sec{background:#fff;color:#9B8B7A;border:1.5px solid #EADFD3;font-weight:600}
+.btn:disabled{background:#E5DDD3;color:#B5A695}
+.err{color:#D9534F;font-size:12px;margin-top:6px;min-height:15px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.tab{flex-shrink:0;background:#fff;border:1.5px solid #EFE5DA;border-radius:11px;padding:8px 13px;font-size:12.5px;font-weight:700;color:#9B8B7A;cursor:pointer;font-family:inherit;white-space:nowrap}
+.tab.on{border-color:#D97757;background:#FFF3E6;color:#B85C3C}
+.tab i{font-style:normal;font-size:11px;opacity:.75;margin-left:3px}
+.bar{display:flex;gap:7px;align-items:center;margin-bottom:11px;flex-wrap:wrap}
+.bar .btn{padding:7px 12px;font-size:12px}
+.cnt{font-size:11.5px;color:#9B8B7A;margin-left:auto}
+.it{background:#fff;border:1px solid #EFE5DA;border-radius:13px;padding:11px 12px;margin-bottom:8px;display:flex;gap:9px;align-items:flex-start}
+.it.hid{opacity:.42;background:#F7F4F0}
+.ck{flex-shrink:0;width:21px;height:21px;border:1.5px solid #DDD0C2;border-radius:6px;background:#fff;cursor:pointer;font-size:11px;color:transparent;padding:0;margin-top:1px;font-family:inherit}
+.ck.on{background:#D97757;border-color:#D97757;color:#fff}
+.bd{flex:1;min-width:0}
+.t{font-size:13.5px;font-weight:700;line-height:1.4;word-break:break-word}
+.t s{color:#B5A695;font-weight:500}
+.meta{font-size:11px;color:#9B8B7A;margin-top:2px}
+.rs{font-size:12px;color:#6B5B4F;margin-top:5px;background:#FBF8F4;border-radius:7px;padding:6px 8px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+.rs.say{background:#F3F8F3}
+.rs.rep{background:#FFF4F0}
+.ts{font-size:10px;color:#C4B5A5;margin-top:4px}
+.tag{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:5px;vertical-align:1px}
+.tag.rep{background:#FFE8E0;color:#C4553A}
+.tag.say{background:#E4F2E4;color:#4A8A4A}
+.tag.rec{background:#FFF0DC;color:#B5762F}
+.tag.hid{background:#EFEAE4;color:#9B8B7A}
+.empty{text-align:center;padding:34px 12px;color:#B5A695;font-size:12.5px;line-height:1.9}
+.out{width:100%;height:120px;border:1.5px solid #EADFD3;border-radius:11px;padding:9px;font-size:11px;font-family:ui-monospace,Menlo,monospace;background:#fff;margin-top:9px;resize:vertical;color:#6B5B4F}
+.note{background:#FFFBF0;border:1px solid #F2E3C8;border-radius:11px;padding:10px 12px;font-size:11.5px;color:#8A7560;line-height:1.75;margin-bottom:12px}
+.note b{color:#6B5B4F}
+.load{text-align:center;padding:30px;color:#B5A695;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🍘 1000本計畫・後台</h1>
+  <div class="sub">讀者的推薦、回報與意見</div>
+
+  <div id="lock" class="lock">
+    <div style="font-size:26px">🔒</div>
+    <div style="font-size:13px;color:#9B8B7A;margin-top:6px">請輸入密碼</div>
+    <input id="pw" type="password" placeholder="密碼" autocomplete="off">
+    <div><button class="btn" onclick="unlock()">進入</button></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="note">
+      Google 表單的資料只能讀、不能從這裡刪。<b>勾選要隱藏的項目 → 產生排除清單 → 傳到 GitHub</b>，網站就不會再顯示它們（資料仍留在表單裡）。
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="bar">
+      <button class="btn sec" onclick="reload()">↻ 重新載入</button>
+      <button class="btn sec" onclick="pickAll()">全選本頁</button>
+      <button class="btn sec" onclick="clearPick()">清除勾選</button>
+      <span class="cnt" id="cnt"></span>
+    </div>
+    <div id="list"><div class="load">載入中…</div></div>
+    <div id="expo" style="display:none">
+      <button class="btn" style="width:100%" onclick="mkHidden()">⬇️ 產生排除清單（hidden.json）</button>
+      <textarea class="out" id="out" readonly placeholder="按上面的按鈕產生"></textarea>
+      <button class="btn sec" style="width:100%;margin-top:7px" onclick="dlHidden()">下載 hidden.json</button>
+      <div class="note" style="margin-top:9px">
+        把 <b>hidden.json</b> 傳到 GitHub 的 Books 專案最外層，跟 index.html 同一層。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PW = "senbei";
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZzwo4T2NccY0dxYmy9B8q3CMmYIZqyzkYXtAJXNlNTjBU2bj1MIheElBPwSZvxSL5IVU15ek5l9zR/pub?output=csv";
+const RP_TAG = "［除錯回報］";
+const SAY_TAG = "［讀者意見］";
+
+let ROWS = [], TAB = "rep", HIDE = new Set();
+try { const s = localStorage.getItem("sb_admin_hide"); if (s) HIDE = new Set(JSON.parse(s)); } catch(e) {}
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function unlock(){
+  const v = document.getElementById("pw").value;
+  if (v !== PW) { document.getElementById("err").textContent = "密碼不對"; return; }
+  try { sessionStorage.setItem("sb_admin_ok", "1"); } catch(e) {}
+  document.getElementById("lock").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  load();
+}
+try { if (sessionStorage.getItem("sb_admin_ok") === "1") { 
+  document.getElementById("lock").style.display = "none";
+  document.getElementById("app").style.display = "block";
+} } catch(e) {}
+
+function parseCSV(text){
+  const rows = []; let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else q = false; }
+      else field += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === "\r") { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// 每一列給一個穩定的 id：用時間戳記＋書名，這樣排除清單才對得回去
+function rid(r){ return (r.ts || "") + "|" + (r.title || ""); }
+
+function kindOf(r){
+  const rs = String(r.reason || "");
+  if (rs.indexOf(RP_TAG) === 0) return "rep";
+  if (rs.indexOf(SAY_TAG) === 0) return "say";
+  return "rec";
+}
+
+async function load(){
+  document.getElementById("list").innerHTML = '<div class="load">載入中…</div>';
+  try {
+    // 加時間參數避開 Google 的快取，不然剛送出的看不到
+    const res = await fetch(CSV_URL + "&_=" + Date.now());
+    const text = await res.text();
+    const rows = parseCSV(text).filter(r => r.length >= 7 && r[1]);
+    ROWS = rows.slice(1).map(r => ({
+      ts: r[0], title: r[1], author: r[2], publisher: r[3], url: r[4], reason: r[5], age: r[6]
+    })).reverse();
+    paint();
+  } catch(e) {
+    document.getElementById("list").innerHTML = '<div class="empty">讀不到資料<br><span style="font-size:11px">' + esc(e.message) + '</span></div>';
+  }
+}
+function reload(){ load(); }
+
+function paint(){
+  const groups = { rep: [], say: [], rec: [] };
+  ROWS.forEach(r => groups[kindOf(r)].push(r));
+
+  const names = { rep: "❗ 回報錯誤", say: "📩 讀者意見", rec: "👍 推薦的書" };
+  document.getElementById("tabs").innerHTML = ["rep","say","rec"].map(k =>
+    '<button class="tab' + (TAB === k ? " on" : "") + '" onclick="go(\'' + k + '\')">' + names[k] + '<i>' + groups[k].length + '</i></button>'
+  ).join("");
+
+  const list = groups[TAB] || [];
+  const hidCount = list.filter(r => HIDE.has(rid(r))).length;
+  document.getElementById("cnt").textContent = list.length + " 筆" + (hidCount ? "・已隱藏 " + hidCount : "");
+  document.getElementById("expo").style.display = HIDE.size ? "block" : "none";
+
+  if (!list.length) {
+    document.getElementById("list").innerHTML = '<div class="empty">目前沒有資料</div>';
+    return;
+  }
+
+  document.getElementById("list").innerHTML = list.map(r => {
+    const id = rid(r);
+    const hid = HIDE.has(id);
+    const k = kindOf(r);
+    let body = String(r.reason || "");
+    if (k === "rep") body = body.slice(RP_TAG.length);
+    if (k === "say") body = body.slice(SAY_TAG.length);
+    const meta = [r.author, r.publisher].filter(x => x && x !== "—").join(" · ");
+    const tagname = { rep: "回報", say: "意見", rec: "推薦" }[k];
+    return '<div class="it' + (hid ? " hid" : "") + '">'
+      + '<button class="ck' + (hid ? " on" : "") + '" onclick="tog(\'' + esc(id).replace(/'/g, "&#39;") + '\')">✓</button>'
+      + '<div class="bd">'
+      + '<div class="t">' + (hid ? "<s>" + esc(r.title) + "</s>" : esc(r.title))
+      + '<span class="tag ' + k + '">' + tagname + '</span>'
+      + (hid ? '<span class="tag hid">已隱藏</span>' : "")
+      + '</div>'
+      + (meta ? '<div class="meta">' + esc(meta) + (r.age ? " · " + esc(r.age) : "") + '</div>' : (r.age ? '<div class="meta">' + esc(r.age) + '</div>' : ""))
+      + (body ? '<div class="rs ' + k + '">' + esc(body) + '</div>' : "")
+      + (r.url ? '<div class="ts"><a href="' + esc(r.url) + '" target="_blank" style="color:#B5876A">' + esc(r.url.slice(0, 46)) + '…</a></div>' : "")
+      + '<div class="ts">' + esc(r.ts) + '</div>'
+      + '</div></div>';
+  }).join("");
+}
+
+function go(k){ TAB = k; paint(); }
+
+function tog(id){
+  if (HIDE.has(id)) HIDE.delete(id); else HIDE.add(id);
+  save(); paint();
+}
+function pickAll(){
+  ROWS.filter(r => kindOf(r) === TAB).forEach(r => HIDE.add(rid(r)));
+  save(); paint();
+}
+function clearPick(){
+  ROWS.filter(r => kindOf(r) === TAB).forEach(r => HIDE.delete(rid(r)));
+  save(); paint();
+}
+function save(){ try { localStorage.setItem("sb_admin_hide", JSON.stringify([...HIDE])); } catch(e) {} }
+
+function mkHidden(){
+  const out = { time: new Date().toISOString().slice(0, 16), hide: [...HIDE] };
+  document.getElementById("out").value = JSON.stringify(out, null, 1);
+}
+function dlHidden(){
+  const out = { time: new Date().toISOString().slice(0, 16), hide: [...HIDE] };
+  const blob = new Blob([JSON.stringify(out, null, 1)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "hidden.json";
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 400);
+}
+
+document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+if (document.getElementById("app").style.display === "block") load();
+</script>
+</body>
+</html>
