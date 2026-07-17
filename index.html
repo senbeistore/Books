@@ -142,14 +142,12 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .wishcopy:active{transform:scale(.98)}
 .wishcp{display:block;margin-top:9px;background:linear-gradient(135deg,#FFF0DC,#FFE4C4);border:1.5px dashed #E8A96F;border-radius:12px;padding:10px 12px;text-align:center;text-decoration:none;transition:.15s}
 .wishcp:active{background:linear-gradient(135deg,#FFE4C4,#FFD6AE);transform:scale(.98)}
-.wishcp.ig{background:linear-gradient(135deg,#FDEEF2,#FBE0E8);border-color:#E8A0B8}
-.wishcp.ig:active{background:linear-gradient(135deg,#FBE0E8,#F8D0DC)}
-.cpc-ig{font-family:'Baloo 2',sans-serif;font-size:15px;font-weight:800;color:#C4557A;letter-spacing:.3px}
+.cpc-ig{font-family:'Baloo 2',sans-serif;font-size:15px;font-weight:800;color:#C4553A;letter-spacing:.3px}
 .cpc-t{font-size:10.5px;font-weight:800;color:#9A5B32;letter-spacing:.2px}
-.cpc-m{display:flex;align-items:center;justify-content:center;gap:8px;margin:5px 0 4px}
+.cpc-m{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:7px}
 .cpc-code{font-size:19px;font-weight:900;color:#C2410C;letter-spacing:1.5px;font-family:ui-monospace,Menlo,monospace}
 .cpc-tag{font-size:8.5px;font-weight:800;color:#fff;background:#E0895A;border-radius:6px;padding:3px 7px;white-space:nowrap}
-.cpc-s{font-size:9.5px;color:#A87A56;font-weight:600}
+.cpc-s{font-size:9.5px;color:#A87A56;font-weight:600;margin-top:3px}
 .wmk{font-size:7.5px;color:#C9A98F;opacity:.42;letter-spacing:.4px;margin-top:7px;font-weight:600;user-select:none;pointer-events:none}
 .wmk-c{text-align:center;margin:10px 0 0;opacity:.62;font-size:10px}
 .warnlabel{font-size:9px;font-weight:700;color:#E0755A;background:#FFF0EC;border-radius:5px;padding:2px 5px;letter-spacing:.2px}
@@ -239,7 +237,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 <div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・出版社…" oninput="S(this.value)"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
 <div class="wrap" id="main"></div>
 <div class="saybox"><button class="saybtn" onclick="openSay()">📩 跟仙貝媽說<em>意見・想看的書・哪裡怪怪的</em></button></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v65</span></div></a>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v67</span></div></a>
 <button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <div class="rpmask" id="saymask" onclick="if(event.target===this)closeSay()"><div class="rpbox"><div class="rphd"><b>📩 跟仙貝媽說</b><button class="rpclose" onclick="closeSay()">✕</button></div><div id="saybody"></div></div></div>
 <div class="rpmask" id="rpmask" onclick="if(event.target===this)closeReport()"><div class="rpbox"><div class="rphd"><b>❗ 回報錯誤</b><button class="rpclose" onclick="closeReport()">✕</button></div><div id="rpbody"></div></div></div>
@@ -495,16 +493,16 @@ function renderWishCoupon(){
     // 沒有券的時候點過去應該是 IG，不是賣場（賣場沒券可用，客人會白跑一趟）
     el.href="https://www.instagram.com/senbei.store/";
     el.className="wishcp ig";
-    el.innerHTML='<div class="cpc-t">❤️ 歡迎追蹤我們！不定時分享免費小工具</div>'
-      +'<div class="cpc-m"><span class="cpc-ig">@SENBEI.STORE</span><span class="cpc-tag">點一下到 IG ↗</span></div>'
-      +'<div class="cpc-s">伴你育兒路</div>';
+    el.innerHTML='<div class="cpc-t">❤️ 歡迎追蹤我們！</div>'
+      +'<div class="cpc-s">不定時分享免費小工具・伴你育兒路</div>'
+      +'<div class="cpc-m"><span class="cpc-ig">@SENBEI.STORE</span><span class="cpc-tag">點一下到 IG ↗</span></div>';
     return;
   }
   el.href="https://mall.iopenmall.tw/000043/index.php?action=product_detail&prod_no=P0004314854567";
   el.className="wishcp";
   el.innerHTML='<div class="cpc-t">🎁 讀者專屬童裝折價券</div>'
-    +'<div class="cpc-m"><span class="cpc-code">'+c.code+'</span><span class="cpc-tag">點一下到賣場 ↗</span></div>'
-    +'<div class="cpc-s">仙貝童裝 @senbei.store・滿 399 折 20・'+c.expiry+' 前使用</div>';
+    +'<div class="cpc-s">仙貝童裝・滿 399 折 20・'+c.expiry+' 前使用</div>'
+    +'<div class="cpc-m"><span class="cpc-code">'+c.code+'</span><span class="cpc-tag">點一下到賣場 ↗</span></div>';
 }
 
 function renderWishList(){
