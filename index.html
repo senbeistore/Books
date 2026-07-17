@@ -142,6 +142,9 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .wishcopy:active{transform:scale(.98)}
 .wishcp{display:block;margin-top:9px;background:linear-gradient(135deg,#FFF0DC,#FFE4C4);border:1.5px dashed #E8A96F;border-radius:12px;padding:10px 12px;text-align:center;text-decoration:none;transition:.15s}
 .wishcp:active{background:linear-gradient(135deg,#FFE4C4,#FFD6AE);transform:scale(.98)}
+.wishcp.ig{background:linear-gradient(135deg,#FDEEF2,#FBE0E8);border-color:#E8A0B8}
+.wishcp.ig:active{background:linear-gradient(135deg,#FBE0E8,#F8D0DC)}
+.cpc-ig{font-family:'Baloo 2',sans-serif;font-size:15px;font-weight:800;color:#C4557A;letter-spacing:.3px}
 .cpc-t{font-size:10.5px;font-weight:800;color:#9A5B32;letter-spacing:.2px}
 .cpc-m{display:flex;align-items:center;justify-content:center;gap:8px;margin:5px 0 4px}
 .cpc-code{font-size:19px;font-weight:900;color:#C2410C;letter-spacing:1.5px;font-family:ui-monospace,Menlo,monospace}
@@ -236,7 +239,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 <div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・出版社…" oninput="S(this.value)"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
 <div class="wrap" id="main"></div>
 <div class="saybox"><button class="saybtn" onclick="openSay()">📩 跟仙貝媽說<em>意見・想看的書・哪裡怪怪的</em></button></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v61</span></div></a>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v63</span></div></a>
 <button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <div class="rpmask" id="saymask" onclick="if(event.target===this)closeSay()"><div class="rpbox"><div class="rphd"><b>📩 跟仙貝媽說</b><button class="rpclose" onclick="closeSay()">✕</button></div><div id="saybody"></div></div></div>
 <div class="rpmask" id="rpmask" onclick="if(event.target===this)closeReport()"><div class="rpbox"><div class="rphd"><b>❗ 回報錯誤</b><button class="rpclose" onclick="closeReport()">✕</button></div><div id="rpbody"></div></div></div>
@@ -277,12 +280,15 @@ let RECS=null, recLoading=false;
 // Google 表單的資料刪不掉（CSV 是唯讀的），所以改成讀一份排除清單，
 // 讓測試資料或不當發言不要出現在網站上。檔案不存在時就當作沒有要隱藏的。
 let HIDDEN = new Set();
+// 後台的設定檔（折價券開關等）。檔案不存在時一切照預設，不會壞。
+let CONFIG = { coupon: true };
 async function loadHidden(){
   try{
     const r = await fetch("hidden.json?_=" + Date.now());
     if(!r.ok) return;
     const d = await r.json();
     if(d && Array.isArray(d.hide)) HIDDEN = new Set(d.hide);
+    if(d && d.config) CONFIG = Object.assign(CONFIG, d.config);
   }catch(e){ /* 沒有這個檔案是正常的 */ }
 }
 
@@ -464,8 +470,22 @@ function closeWish(){ document.getElementById("wishmodal").classList.remove("ope
 function renderWishCoupon(){
   const el=document.getElementById("wishcp");
   if(!el) return;
-  const c=currentCoupon();
-  if(!c){ el.style.display="none"; return; }
+  // 折價券可以在後台關掉（沒檔期、不想發的時候）。
+  // 關掉時這個位置不留白，改成邀請追蹤 IG——對客人仍然是有價值的訊息，
+  // 而不是一張過期或根本不存在的券。
+  const c = CONFIG.coupon ? currentCoupon() : null;
+  el.style.display="";
+  if(!c){
+    // 沒有券的時候點過去應該是 IG，不是賣場（賣場沒券可用，客人會白跑一趟）
+    el.href="https://www.instagram.com/senbei.store/";
+    el.className="wishcp ig";
+    el.innerHTML='<div class="cpc-t">❤️ 歡迎追蹤我們！不定時分享免費小工具</div>'
+      +'<div class="cpc-m"><span class="cpc-ig">@SENBEI.STORE</span><span class="cpc-tag">點一下到 IG ↗</span></div>'
+      +'<div class="cpc-s">伴你育兒路</div>';
+    return;
+  }
+  el.href="https://mall.iopenmall.tw/000043/";
+  el.className="wishcp";
   el.innerHTML='<div class="cpc-t">🎁 讀者專屬童裝折價券</div>'
     +'<div class="cpc-m"><span class="cpc-code">'+c.code+'</span><span class="cpc-tag">點一下到賣場 ↗</span></div>'
     +'<div class="cpc-s">仙貝童裝 @senbei.store・滿 399 折 20・'+c.expiry+' 前使用</div>';
@@ -497,7 +517,7 @@ function dropGone(){
   WISH=WISH.filter(w=>inCatalog(w.t));
   try{localStorage.setItem("sb_wish",JSON.stringify(WISH))}catch(e){}
   renderWishList(); renderWishFab(); placeTopFab();
-  if(typeof LS==="function") LS();
+  R();
 }
 
 function copyWishList(){
@@ -519,6 +539,8 @@ function copyWishList(){
 }
 
 let pickedUrl="", pickedAuthor="", pickedPublisher="", cands=[];
+// 這一次瀏覽期間的搜尋結果，重整頁面就沒了，只為了擋住反覆按同一個搜尋
+const SEARCH_CACHE={};
 
 async function searchBook(){
   const ti=document.getElementById("rf-title");
@@ -534,8 +556,14 @@ async function searchBook(){
     // 但連結一律給誠品：誠品有 Cloudflare 擋伺服器爬蟲
     //（曾經抓回「Attention Required! | Cloudflare」被當成書名存進去），
     // 不過那只擋伺服器，客人自己的手機點連結完全正常。
-    const r=await fetch(SCRAPE_API+"?q="+encodeURIComponent(t));
-    const d=await r.json();
+    // 同一個人重複搜同樣的書名（打錯字改回來、來回切換），不要每次都打後端。
+    // 後端還有一層快取和流量上限，這裡先擋掉最沒必要的那些。
+    let d = SEARCH_CACHE[t];
+    if(!d){
+      const r=await fetch(SCRAPE_API+"?q="+encodeURIComponent(t));
+      d=await r.json();
+      SEARCH_CACHE[t]=d;
+    }
     const items=(d&&d.items?d.items:[]);
     if(items.length){
       cands=items;
