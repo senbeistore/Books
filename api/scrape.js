@@ -85,15 +85,17 @@ async function verifyEslite(q, res) {
 // 金石堂驗證模式：台灣書店的中文童書資料遠比 Google 圖書完整
 // （Google 圖書查不到的信誼/上誼/小魯繪本，金石堂幾乎都有）
 // 之前拔掉金石堂是因為「搜尋書名找書」時會混進玩具，但驗證書名時玩具不會叫「好可愛的臉」，不影響
-async function verifyKingstone(q, res) {
+// 金石堂搜尋的抓取與解析。verifyKingstone（書庫驗證）和 searchBooks（讀者找書）
+// 都要用，所以抽出來共用一份。
+async function fetchKingstoneItems(q) {
   const url = 'https://www.kingstone.com.tw/search/key/' + encodeURIComponent(q);
   let html = '';
   try {
     const r = await fetchWithTimeout(url, 6000);
-    if (!r.ok) return res.status(200).json({ v: 20, reason: 'http-' + r.status, items: [] });
+    if (!r.ok) return { reason: 'http-' + r.status, items: [] };
     html = await r.text();
   } catch (e) {
-    return res.status(200).json({ v: 20, reason: 'timeout', items: [] });
+    return { reason: 'timeout', items: [] };
   }
 
   try {
@@ -123,10 +125,15 @@ async function verifyKingstone(q, res) {
         ebook: /【電子書】/.test(title)
       });
     }
-    return res.status(200).json({ v: 20, reason: items.length ? 'ok' : 'no-items', items });
+    return { reason: items.length ? 'ok' : 'no-items', items };
   } catch (e) {
-    return res.status(200).json({ v: 20, reason: 'parse-error:' + String(e).slice(0, 60), items: [] });
+    return { reason: 'parse-error:' + String(e).slice(0, 60), items: [] };
   }
+}
+
+async function verifyKingstone(q, res) {
+  const r = await fetchKingstoneItems(q);
+  return res.status(200).json({ v: 20, reason: r.reason, items: r.items });
 }
 
 // 驗證模式：專供書庫除錯用，不做相關度過濾
@@ -252,16 +259,59 @@ async function searchGoogleBooks(q) {
   }
 }
 
+// 讀者找書：金石堂 + Google 圖書一起查，把結果合起來。
+// 為什麼要兩個都查：
+//   金石堂 → 台灣的中文童書收錄完整，但只有台灣有賣的書
+//   Google → 補外文書、以及金石堂沒收錄的
+// 兩邊同時發，誰慢不影響另一邊；任一邊掛了還有另一邊的結果可用。
+// 排序上金石堂優先，因為這個書單九成是台灣買得到的中文童書。
+function normT(s) {
+  return String(s || '').toLowerCase().replace(/[\s\u3000]/g, '')
+    .replace(/[（）()【】\[\]「」『』：:．・.,，、~～!！?？'"’”\-—–]/g, '');
+}
+
 async function searchBooks(q, res) {
-  const g = await searchGoogleBooks(q);
+  const [ks, g] = await Promise.all([
+    fetchKingstoneItems(q).catch(e => ({ reason: 'err', items: [] })),
+    searchGoogleBooks(q).catch(e => ({ reason: 'err', items: [] }))
+  ]);
+
+  const items = [];
+  const seen = new Set();
+
+  // 金石堂先進，電子書不要（讀者要買的是實體書）
+  (ks.items || []).forEach(x => {
+    if (x.ebook) return;
+    const k = normT(x.title);
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    items.push({ title: x.title, author: x.author || '', publisher: x.publisher || '', src: 'kingstone' });
+  });
+
+  // Google 補上金石堂沒有的
+  (g.items || []).forEach(x => {
+    const k = normT(x.title);
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    items.push({ title: x.title, author: x.author || '', publisher: x.publisher || '', src: 'google' });
+  });
+
   return res.status(200).json({
-    v: 20, source: 'google',
-    found: g.items.length > 0,
-    items: g.items.slice(0, 6),
-    googleReason: g.reason,
-    googleDetail: g.detail || ''
+    v: 20,
+    source: 'kingstone+google',
+    found: items.length > 0,
+    items: items.slice(0, 8),
+    ksReason: ks.reason,
+    googleReason: g.reason
   });
 }
+
+// 被防爬蟲擋下來時，回來的是一張「錯誤頁」，它一樣有正常的 <title>，
+// 長度也夠，所以原本的檢查完全擋不住，結果把
+// 「Attention Required! | Cloudflare」這種字串當成書名存進資料庫。
+// 這類頁面必須明確擋掉，寧可回 found:false 讓使用者自己打書名。
+const BLOCK_TITLE = /Attention Required|Just a moment|Access denied|Access Denied|Cloudflare|請稍候|驗證您是人類|Security Check|Are you a robot|403 Forbidden|404|Not Found|錯誤|Error/i;
+const BLOCK_BODY = /cf-browser-verification|cf_chl_opt|_cf_chl|challenge-platform|__cf_bm|turnstile|hcaptcha|recaptcha/i;
 
 async function scrapeTitle(url, res) {
   try {
@@ -269,7 +319,16 @@ async function scrapeTitle(url, res) {
     const p = new URL(r.url).pathname;
     if (p === '/' || p === '') return res.status(200).json({ found: false, reason: 'blocked' });
 
+    // 403 / 503 通常就是被擋，不是真的沒這一頁
+    if (r.status === 403 || r.status === 503 || r.status === 429) {
+      return res.status(200).json({ found: false, reason: 'blocked-' + r.status });
+    }
+
     const html = await r.text();
+    if (BLOCK_BODY.test(html)) {
+      return res.status(200).json({ found: false, reason: 'anti-bot' });
+    }
+
     let title = '';
     const og = html.match(/property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
            || html.match(/content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
@@ -279,6 +338,9 @@ async function scrapeTitle(url, res) {
     title = decode(title).replace(SITE_SUFFIX, '').trim();
     if (!title || title.length < 2 || GENERIC.includes(title)) {
       return res.status(200).json({ found: false, reason: 'no-title' });
+    }
+    if (BLOCK_TITLE.test(title)) {
+      return res.status(200).json({ found: false, reason: 'anti-bot-title' });
     }
     return res.status(200).json({ found: true, title });
   } catch (e) {
