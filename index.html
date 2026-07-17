@@ -231,6 +231,12 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .hdbrand{display:inline-flex;flex-direction:column;justify-content:center;gap:1px;margin-left:1px;padding:2px 6px;border-left:1.5px solid rgba(255,255,255,.65);text-decoration:none;line-height:1}
 .hdbrand span{font-family:'Baloo 2',-apple-system,sans-serif;font-size:8px;font-weight:800;color:#fff;letter-spacing:1.4px;text-shadow:0 1px 2px rgba(180,110,70,.3)}
 .hdbrand:active span{color:#FFF2E4}
+.prog{margin:26px 14px 4px;text-align:center}
+.prog-t{font-size:11px;font-weight:800;color:#9A5B32;letter-spacing:.4px;margin-bottom:7px}
+.prog-bar{height:9px;background:#F2E6D8;border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(150,110,70,.13)}
+.prog-fill{height:100%;background:linear-gradient(90deg,#F0A868,#D97757);border-radius:6px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.prog-n{font-size:11px;color:#A87A56;font-weight:600;margin-top:6px}
+.prog-n b{font-family:'Baloo 2',sans-serif;font-size:14px;color:#D97757}
 .brand-footer{display:block;max-width:720px;margin:6px auto 0;padding:22px 20px 30px;text-align:center;text-decoration:none;cursor:pointer}
 .brand-footer:active .bf-emoji{transform:scale(1.15)}
 .brand-footer .bf-line{height:1px;background:linear-gradient(90deg,transparent,#F0D9C4,transparent);margin-bottom:18px}
@@ -242,7 +248,8 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 <div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・出版社…" oninput="S(this.value)"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
 <div class="wrap" id="main"></div>
 <div class="saybox"><button class="saybtn" onclick="openSay()">📩 跟仙貝媽說<em>意見・想看的書・哪裡怪怪的</em></button></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v76</span></div></a>
+<div class="prog"><div class="prog-t">📚 1000本計畫</div><div class="prog-bar"><div class="prog-fill" style="width:82.6%"></div></div><div class="prog-n">目前 <b>826</b> / 1000　差一點點！</div></div>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v77</span></div></a>
 <button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <div class="rpmask" id="saymask" onclick="if(event.target===this)closeSay()"><div class="rpbox"><div class="rphd"><b>📩 跟仙貝媽說</b><button class="rpclose" onclick="closeSay()">✕</button></div><div id="saybody"></div></div></div>
 <div class="rpmask" id="rpmask" onclick="if(event.target===this)closeReport()"><div class="rpbox"><div class="rphd"><b>❗ 回報錯誤</b><button class="rpclose" onclick="closeReport()">✕</button></div><div id="rpbody"></div></div></div>
@@ -268,6 +275,7 @@ let g=AG[0], ty="s", q="", D=new Set(), sr=true;
 try{const v=localStorage.getItem("sb_showreco"); if(v==="0") sr=false;}catch(e){}
 AG.forEach(k=>{BOOKS[k].s.forEach((b,i)=>b.id=k+"|s|"+i);BOOKS[k].o.forEach((b,i)=>b.id=k+"|o|"+i)});
 const FLAT=AG.flatMap(k=>[...BOOKS[k].s.map(b=>({...b,g:k,ty:"s"})),...BOOKS[k].o.map(b=>({...b,g:k,ty:"o"}))]);
+
 try{const s=localStorage.getItem("sb_read4");if(s)D=new Set(JSON.parse(s))}catch(e){}
 const save=()=>{try{localStorage.setItem("sb_read4",JSON.stringify([...D]))}catch(e){}};
 const dnOf=k=>BOOKS[k].s.filter(b=>D.has(b.id)).length+BOOKS[k].o.filter(b=>D.has(b.id)).length;
