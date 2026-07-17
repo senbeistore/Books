@@ -130,6 +130,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .wi-gonebar button:active{transform:scale(.97);background:#F0E8DE}
 .wi-main{flex:1;min-width:0}
 .wi-t{font-size:12.5px;font-weight:700;color:#5B4636;line-height:1.4}
+.wi-bg{margin-top:4px}
 .wi-a{font-size:10px;color:#B5876A;margin-top:2px}
 .wi-find{flex-shrink:0;background:#FFF3E6;border:1.5px solid #F0B98A;border-radius:8px;padding:6px 9px;font-size:12.5px;text-decoration:none;line-height:1}
 .wi-x{flex-shrink:0;background:none;border:none;color:#D9B8A0;font-size:15px;cursor:pointer;padding:4px 5px;font-family:inherit}
@@ -249,7 +250,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 <div class="wrap" id="main"></div>
 <div class="saybox"><button class="saybtn" onclick="openSay()">📩 跟仙貝媽說<em>意見・想看的書・哪裡怪怪的</em></button></div>
 <div class="prog"><div class="prog-t">📚 1000本計畫</div><div class="prog-bar"><div class="prog-fill" style="width:82.6%"></div></div><div class="prog-n">目前 <b>826</b> / 1000　差一點點！</div></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v78</span></div></a>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v80</span></div></a>
 <button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <div class="rpmask" id="saymask" onclick="if(event.target===this)closeSay()"><div class="rpbox"><div class="rphd"><b>📩 跟仙貝媽說</b><button class="rpclose" onclick="closeSay()">✕</button></div><div id="saybody"></div></div></div>
 <div class="rpmask" id="rpmask" onclick="if(event.target===this)closeReport()"><div class="rpbox"><div class="rphd"><b>❗ 回報錯誤</b><button class="rpclose" onclick="closeReport()">✕</button></div><div id="rpbody"></div></div></div>
@@ -436,7 +437,23 @@ function currentCoupon(){
 // 但讀者的心願清單存在他自己手機裡，不會跟著更新。
 // 已經不在書庫的書要標出來，不然客人點過去誠品只會看到一片空白，
 // 還以為是自己手機壞了。
-let INDEX_TITLES = null;
+let INDEX_TITLES = null, INDEX_MAP = null;
+// 心願清單只存書名，徽章不存——一律拿現在的書庫查。
+// 這樣書庫之後補了徽章（例如查到得獎紀錄），舊的心願清單也會跟著顯示。
+function catalogBook(title){
+  if(!INDEX_MAP){
+    INDEX_MAP = {};
+    Object.keys(BOOKS).forEach(function(g){
+      ["s","o"].forEach(function(c){
+        (BOOKS[g][c]||[]).forEach(function(b){
+          const k = normTitle(b.t) || String(b.t).trim();
+          if(!INDEX_MAP[k]) INDEX_MAP[k] = b;
+        });
+      });
+    });
+  }
+  return INDEX_MAP[normTitle(title) || String(title).trim()] || null;
+}
 function inCatalog(title){
   if(!INDEX_TITLES){
     INDEX_TITLES = new Set();
@@ -531,8 +548,10 @@ function renderWishList(){
     const gone=!inCatalog(w.t);
     return '<div class="wi'+(gone?" gone":"")+'">'
     +'<div class="wi-main"><div class="wi-t">'+esc(w.t)+(gone?'<span class="wi-gone">已下架</span>':'')+'</div>'
+    +(function(){ const cb=gone?null:catalogBook(w.t); return (cb&&cb.b)?'<div class="wi-bg"><span class="bg-">'+esc(cb.b)+'</span></div>':''; })()
     +((w.a||w.p)?'<div class="wi-a">'+esc([w.a,w.p].filter(x=>x&&x!=="—").join(" · "))+'</div>':'')
     +(gone?'<div class="wi-gonewhy">這本書已從書單移除（查證後發現資料有誤或已絕版），建議直接刪掉</div>':'')
+    +'<div class="wmk">@senbei.store</div>'
     +'</div>'
     +(gone?'':'<a class="wi-find" href="'+eslite.u(w.t)+'" target="_blank" title="看書籍介紹">🔍</a>')
     +'<button class="wi-x" onclick="removeWish('+i+')" title="從清單移除">✕</button>'
