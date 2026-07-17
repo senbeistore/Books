@@ -39,6 +39,49 @@ async function callGoogleBooksOnce(q) {
   }
 }
 
+// 誠品驗證模式：App 每張書卡都連誠品搜尋，所以驗證也該用誠品——
+// 標準一致才有意義：誠品搜不到 = 客人點進去也是空的 = 這本不該留在書單
+// （誠品搜尋頁可能是 JS 動態產生，若是則抓不到商品，reason 會回 no-items）
+async function verifyEslite(q, res) {
+  const url = 'https://www.eslite.com/Search?keyword=' + encodeURIComponent(q);
+  let html = '';
+  try {
+    const r = await fetchWithTimeout(url, 8000);
+    if (!r.ok) return res.status(200).json({ v: 20, src: 'eslite', reason: 'http-' + r.status, items: [] });
+    html = await r.text();
+  } catch (e) {
+    return res.status(200).json({ v: 20, src: 'eslite', reason: 'timeout', items: [] });
+  }
+
+  try {
+    const items = [];
+    const seen = new Set();
+    // 誠品商品連結長這樣：/product/1003117071209568
+    const re = /<a[^>]*href="\/product\/(\d+)"[^>]*>([\s\S]{0,300}?)<\/a>/g;
+    let m;
+    while ((m = re.exec(html)) !== null && items.length < 10) {
+      const title = decode(m[2].replace(/<[^>]+>/g, ' '));
+      if (!title || title.length < 2 || seen.has(title)) continue;
+      seen.add(title);
+      items.push({ title: title, id: m[1] });
+    }
+    // 抓不到商品時，把頁面特徵回報出來，才能判斷是「沒這本書」還是「頁面要 JS 才長出內容」
+    const diag = {
+      len: html.length,
+      hasNext: /__NEXT_DATA__|__NUXT__/.test(html),
+      hasProductWord: /\/product\//.test(html),
+      hasNoResult: /沒有找到|查無|符合商品/.test(html)
+    };
+    return res.status(200).json({
+      v: 20, src: 'eslite',
+      reason: items.length ? 'ok' : 'no-items',
+      diag: diag, items: items
+    });
+  } catch (e) {
+    return res.status(200).json({ v: 20, src: 'eslite', reason: 'parse-error:' + String(e).slice(0, 60), items: [] });
+  }
+}
+
 // 金石堂驗證模式：台灣書店的中文童書資料遠比 Google 圖書完整
 // （Google 圖書查不到的信誼/上誼/小魯繪本，金石堂幾乎都有）
 // 之前拔掉金石堂是因為「搜尋書名找書」時會混進玩具，但驗證書名時玩具不會叫「好可愛的臉」，不影響
@@ -47,10 +90,10 @@ async function verifyKingstone(q, res) {
   let html = '';
   try {
     const r = await fetchWithTimeout(url, 6000);
-    if (!r.ok) return res.status(200).json({ v: 19, reason: 'http-' + r.status, items: [] });
+    if (!r.ok) return res.status(200).json({ v: 20, reason: 'http-' + r.status, items: [] });
     html = await r.text();
   } catch (e) {
-    return res.status(200).json({ v: 19, reason: 'timeout', items: [] });
+    return res.status(200).json({ v: 20, reason: 'timeout', items: [] });
   }
 
   try {
@@ -80,9 +123,9 @@ async function verifyKingstone(q, res) {
         ebook: /【電子書】/.test(title)
       });
     }
-    return res.status(200).json({ v: 19, reason: items.length ? 'ok' : 'no-items', items });
+    return res.status(200).json({ v: 20, reason: items.length ? 'ok' : 'no-items', items });
   } catch (e) {
-    return res.status(200).json({ v: 19, reason: 'parse-error:' + String(e).slice(0, 60), items: [] });
+    return res.status(200).json({ v: 20, reason: 'parse-error:' + String(e).slice(0, 60), items: [] });
   }
 }
 
@@ -90,7 +133,7 @@ async function verifyKingstone(q, res) {
 // 理由：如果書庫的書名本身就打錯了，相關度過濾反而會把「正確的那本書」擋掉，
 // 導致永遠驗證不出錯誤。這裡回傳 Google 原始結果，由前端自己比對。
 async function verifyBook(q, res) {
-  if (!GOOGLE_BOOKS_KEY) return res.status(200).json({ v: 19, reason: 'no-key', items: [] });
+  if (!GOOGLE_BOOKS_KEY) return res.status(200).json({ v: 20, reason: 'no-key', items: [] });
   let r = null, lastStatus = 0;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -102,10 +145,10 @@ async function verifyBook(q, res) {
       r = null;
     } catch (e) { r = null; }
   }
-  if (!r || !r.ok) return res.status(200).json({ v: 19, reason: lastStatus ? 'http-' + lastStatus : 'timeout', items: [] });
+  if (!r || !r.ok) return res.status(200).json({ v: 20, reason: lastStatus ? 'http-' + lastStatus : 'timeout', items: [] });
   try {
     const data = await r.json();
-    if (!data.items) return res.status(200).json({ v: 19, reason: 'no-items', items: [] });
+    if (!data.items) return res.status(200).json({ v: 20, reason: 'no-items', items: [] });
     const items = data.items.slice(0, 8).map(x => {
       const i = x.volumeInfo || {};
       const ids = (i.industryIdentifiers || []).map(y => y.identifier);
@@ -119,9 +162,9 @@ async function verifyBook(q, res) {
         tw: ids.some(y => /^978(957|986)/.test(y.replace(/-/g, '')))
       };
     });
-    return res.status(200).json({ v: 19, reason: 'ok', items });
+    return res.status(200).json({ v: 20, reason: 'ok', items });
   } catch (e) {
-    return res.status(200).json({ v: 19, reason: 'parse-error', items: [] });
+    return res.status(200).json({ v: 20, reason: 'parse-error', items: [] });
   }
 }
 
@@ -212,7 +255,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 19, source: 'google',
+    v: 20, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
@@ -245,7 +288,8 @@ async function scrapeTitle(url, res) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  const { url, q, verify, ks } = req.query;
+  const { url, q, verify, ks, es } = req.query;
+  if (es) return verifyEslite(es, res);
   if (ks) return verifyKingstone(ks, res);
   if (verify) return verifyBook(verify, res);
   if (q) return searchBooks(q, res);
