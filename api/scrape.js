@@ -39,6 +39,45 @@ async function callGoogleBooksOnce(q) {
   }
 }
 
+// 驗證模式：專供書庫除錯用，不做相關度過濾
+// 理由：如果書庫的書名本身就打錯了，相關度過濾反而會把「正確的那本書」擋掉，
+// 導致永遠驗證不出錯誤。這裡回傳 Google 原始結果，由前端自己比對。
+async function verifyBook(q, res) {
+  if (!GOOGLE_BOOKS_KEY) return res.status(200).json({ v: 18, reason: 'no-key', items: [] });
+  let r = null, lastStatus = 0;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      if (attempt > 1) await new Promise(x => setTimeout(x, attempt === 2 ? 300 : 700));
+      r = await callGoogleBooksOnce(q);
+      if (r.ok) break;
+      lastStatus = r.status;
+      if (![500, 502, 503, 504].includes(r.status)) break;
+      r = null;
+    } catch (e) { r = null; }
+  }
+  if (!r || !r.ok) return res.status(200).json({ v: 18, reason: lastStatus ? 'http-' + lastStatus : 'timeout', items: [] });
+  try {
+    const data = await r.json();
+    if (!data.items) return res.status(200).json({ v: 18, reason: 'no-items', items: [] });
+    const items = data.items.slice(0, 8).map(x => {
+      const i = x.volumeInfo || {};
+      const ids = (i.industryIdentifiers || []).map(y => y.identifier);
+      return {
+        title: i.title || '',
+        subtitle: i.subtitle || '',
+        author: (i.authors || []).join('、'),
+        publisher: i.publisher || '',
+        year: (i.publishedDate || '').slice(0, 4),
+        isbn: ids.find(y => /^978/.test(y)) || ids[0] || '',
+        tw: ids.some(y => /^978(957|986)/.test(y.replace(/-/g, '')))
+      };
+    });
+    return res.status(200).json({ v: 18, reason: 'ok', items });
+  } catch (e) {
+    return res.status(200).json({ v: 18, reason: 'parse-error', items: [] });
+  }
+}
+
 async function searchGoogleBooks(q) {
   if (!GOOGLE_BOOKS_KEY) return { items: [], reason: 'no-key' };
 
@@ -126,7 +165,7 @@ async function searchGoogleBooks(q) {
 async function searchBooks(q, res) {
   const g = await searchGoogleBooks(q);
   return res.status(200).json({
-    v: 17, source: 'google',
+    v: 18, source: 'google',
     found: g.items.length > 0,
     items: g.items.slice(0, 6),
     googleReason: g.reason,
@@ -159,7 +198,8 @@ async function scrapeTitle(url, res) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  const { url, q } = req.query;
+  const { url, q, verify } = req.query;
+  if (verify) return verifyBook(verify, res);
   if (q) return searchBooks(q, res);
   if (url) return scrapeTitle(url, res);
   return res.status(400).json({ found: false });
