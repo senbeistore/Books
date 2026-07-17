@@ -120,6 +120,14 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .wishtip{font-size:10.5px;color:#B5876A;margin-bottom:11px;line-height:1.5}
 .wishlist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
 .wi{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #F3E3D3;border-radius:11px;padding:10px 11px;margin-bottom:7px}
+.wi.gone{background:#FAF7F4;border-color:#EDE4DA;border-style:dashed}
+.wi.gone .wi-t{color:#A89684}
+.wi.gone .wi-find{opacity:.4;pointer-events:none}
+.wi-gone{display:inline-block;font-size:9px;font-weight:700;background:#EFE7DE;color:#9B8B7A;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px}
+.wi-gonewhy{font-size:10px;color:#B5A695;margin-top:3px;line-height:1.5}
+.wi-gonebar{display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;color:#9B8B7A;background:#F7F3EE;border-radius:9px;padding:8px;margin-top:3px}
+.wi-gonebar button{background:#fff;border:1.5px solid #E0D2C2;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;color:#8A7560;cursor:pointer;font-family:inherit}
+.wi-gonebar button:active{transform:scale(.97);background:#F0E8DE}
 .wi-main{flex:1;min-width:0}
 .wi-t{font-size:12.5px;font-weight:700;color:#5B4636;line-height:1.4}
 .wi-a{font-size:10px;color:#B5876A;margin-top:2px}
@@ -155,6 +163,8 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .candlbl{font-size:10px;color:#B5876A;font-weight:700;margin:7px 0 5px}
 .cand{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid #F3E3D3;border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;color:#5B4636;cursor:pointer;font-family:inherit;margin-bottom:5px;line-height:1.45}
 .candsub{display:block;font-size:9.5px;font-weight:500;color:#B5876A;margin-top:2px}
+.candsrc{display:inline-block;font-size:8.5px;font-weight:700;background:#FFF0DC;color:#B5762F;border-radius:4px;padding:1px 4px;margin-left:5px;vertical-align:1px}
+.candsrc.g{background:#E8F0FA;color:#4A7BB5}
 .cand:active{background:#FFF3E4;border-color:#F0A868}
 .candskip{font-size:9px;color:#C9A88C;margin-top:3px;line-height:1.5}
 .scrapebox{border-radius:9px;padding:7px 9px;font-size:10px;line-height:1.6;margin-top:5px}
@@ -226,7 +236,7 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 <div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・出版社…" oninput="S(this.value)"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
 <div class="wrap" id="main"></div>
 <div class="saybox"><button class="saybtn" onclick="openSay()">📩 跟仙貝媽說<em>意見・想看的書・哪裡怪怪的</em></button></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v56</span></div></a>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v59</span></div></a>
 <button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <div class="rpmask" id="saymask" onclick="if(event.target===this)closeSay()"><div class="rpbox"><div class="rphd"><b>📩 跟仙貝媽說</b><button class="rpclose" onclick="closeSay()">✕</button></div><div id="saybody"></div></div></div>
 <div class="rpmask" id="rpmask" onclick="if(event.target===this)closeReport()"><div class="rpbox"><div class="rphd"><b>❗ 回報錯誤</b><button class="rpclose" onclick="closeReport()">✕</button></div><div id="rpbody"></div></div></div>
@@ -388,6 +398,23 @@ function currentCoupon(){
 
 // ===== 心願書單 =====
 // 跟「打勾（已讀）」「👍推薦」是三種不同狀態：想買但還沒買
+// 書庫會隨著查證結果修正而變動（改書名、砍掉查無此書的），
+// 但讀者的心願清單存在他自己手機裡，不會跟著更新。
+// 已經不在書庫的書要標出來，不然客人點過去誠品只會看到一片空白，
+// 還以為是自己手機壞了。
+let INDEX_TITLES = null;
+function inCatalog(title){
+  if(!INDEX_TITLES){
+    INDEX_TITLES = new Set();
+    Object.keys(BOOKS).forEach(function(g){
+      ["s","o"].forEach(function(c){
+        (BOOKS[g][c]||[]).forEach(function(b){ INDEX_TITLES.add(normTitle(b.t)||b.t); });
+      });
+    });
+  }
+  return INDEX_TITLES.has(normTitle(title)||title);
+}
+
 let WISH=[];
 try{const s=localStorage.getItem("sb_wish");if(s)WISH=JSON.parse(s)}catch(e){}
 const saveWish=()=>{try{localStorage.setItem("sb_wish",JSON.stringify(WISH))}catch(e){}};
@@ -450,20 +477,36 @@ function renderWishList(){
   if(!WISH.length){ box.innerHTML='<div class="wishempty">還沒加入任何書<br><span>看到想買的書，點 📖 加進來</span></div>'; return; }
   const eslite=STORES.find(s=>s.n==="誠品");
   // 🔍 這顆按鈕不說明的話，讀者不會知道點下去會發生什麼事
+  const goneN=WISH.filter(w=>!inCatalog(w.t)).length;
   box.innerHTML='<div class="wishtip"><b>🔍</b><em>看書籍介紹</em>　到誠品線上查這本書的簡介與價格</div>'
-    + WISH.map((w,i)=>
-    '<div class="wi">'
-    +'<div class="wi-main"><div class="wi-t">'+esc(w.t)+'</div>'
+    + WISH.map((w,i)=>{
+    const gone=!inCatalog(w.t);
+    return '<div class="wi'+(gone?" gone":"")+'">'
+    +'<div class="wi-main"><div class="wi-t">'+esc(w.t)+(gone?'<span class="wi-gone">已下架</span>':'')+'</div>'
     +((w.a||w.p)?'<div class="wi-a">'+esc([w.a,w.p].filter(x=>x&&x!=="—").join(" · "))+'</div>':'')
+    +(gone?'<div class="wi-gonewhy">這本書已從書單移除（查證後發現資料有誤或已絕版），建議直接刪掉</div>':'')
     +'</div>'
-    +'<a class="wi-find" href="'+eslite.u(w.t)+'" target="_blank" title="看書籍介紹">🔍</a>'
+    +(gone?'':'<a class="wi-find" href="'+eslite.u(w.t)+'" target="_blank" title="看書籍介紹">🔍</a>')
     +'<button class="wi-x" onclick="removeWish('+i+')" title="從清單移除">✕</button>'
-    +'</div>').join('');
+    +'</div>';
+  }).join('')
+    + (goneN?'<div class="wi-gonebar">有 '+goneN+' 本已下架　<button onclick="dropGone()">一鍵清除</button></div>':'');
 }
+// 一本一本刪很煩，給個一次清掉的按鈕
+function dropGone(){
+  WISH=WISH.filter(w=>inCatalog(w.t));
+  try{localStorage.setItem("sb_wish",JSON.stringify(WISH))}catch(e){}
+  renderWishList(); renderWishFab(); placeTopFab();
+  if(typeof LS==="function") LS();
+}
+
 function copyWishList(){
   if(!WISH.length) return;
   // 排成有序號的樣子，貼到 LINE 或 IG 限動比較好讀
-  const lines=WISH.map((w,i)=>{
+  // 已下架的不要複製出去，免得朋友照著清單去買買不到
+  const live=WISH.filter(w=>inCatalog(w.t));
+  if(!live.length) return;
+  const lines=live.map((w,i)=>{
     const sub=[w.a,w.p].filter(x=>x&&x!=="—"&&x!=="").join("／");
     return (i+1)+"-\n"+(sub ? w.t+"（"+sub+"）" : w.t);
   });
@@ -485,12 +528,20 @@ async function searchBook(){
   if(!t){ box.innerHTML=""; cands=[]; pickedUrl=""; pickedAuthor=""; pickedPublisher=""; return; }
   box.innerHTML='<div class="scrapebox load">🔍 幫你找這本書…</div>';
   try{
+    // 找書會同時查金石堂和 Google 圖書（後端合併）：
+    //   金石堂 → 台灣中文童書收錄完整
+    //   Google → 補外文書和金石堂沒有的
+    // 但連結一律給誠品：誠品有 Cloudflare 擋伺服器爬蟲
+    //（曾經抓回「Attention Required! | Cloudflare」被當成書名存進去），
+    // 不過那只擋伺服器，客人自己的手機點連結完全正常。
     const r=await fetch(SCRAPE_API+"?q="+encodeURIComponent(t));
     const d=await r.json();
-    if(d && d.found && d.items && d.items.length){
-      cands=d.items;
+    const items=(d&&d.items?d.items:[]);
+    if(items.length){
+      cands=items;
       box.innerHTML='<div class="candlbl">👇 找到這些，點一下你要推薦的那本</div>'
         +cands.map((x,i)=>'<button class="cand" onclick="pickBook('+i+')">'+esc(x.title)
+          +(x.src==="kingstone"?'<span class="candsrc">金石堂</span>':(x.src==="google"?'<span class="candsrc g">Google</span>':''))
           +((x.author||x.publisher)?'<span class="candsub">'+esc([x.author,x.publisher].filter(Boolean).join(' · '))+'</span>':'')
           +'</button>').join('')
         +'<div class="candskip">都不是也沒關係，直接送出就會用你打的書名</div>';
@@ -509,7 +560,9 @@ function pickBook(i){
   const x=cands[i]; if(!x) return;
   const ti=document.getElementById("rf-title");
   if(ti) ti.value=x.title;
-  pickedUrl=x.url;
+  // 金石堂沒有誠品的商品網址，用書名組一個誠品搜尋連結給客人點
+  const es=STORES.find(s=>s.n==="誠品");
+  pickedUrl=es?es.u(x.title):"";
   pickedAuthor=x.author||"";
   pickedPublisher=x.publisher||"";
   document.getElementById("rf-cands").innerHTML='<div class="scrapebox ok">✓ 已選：'+esc(x.title)+'</div>';
@@ -588,8 +641,9 @@ function submitRec(){
   if(!t||!rs||!ag){ msg.textContent="書名、推薦原因、適合年齡都要填喔"; msg.className="msg err"; return; }
   if(hasBadWord(t)||hasBadWord(rs)){ msg.textContent="內容含不當字詞，請修改後再送出"; msg.className="msg err"; return; }
   // 只有從搜尋結果點選的網址才會被存，客人無法自己貼 → 分潤連結完全不可能進來
-  let finalUrl="";
-  if(pickedUrl){ const c=cleanUrl(pickedUrl); if(c.ok) finalUrl=c.url; }
+  // 網址是我們自己用書名組的誠品搜尋連結，不是客人貼的，
+  // 所以不可能夾帶分潤參數，也不用再過一次過濾
+  const finalUrl = pickedUrl || "";
 
   postToForm({ [FORM_ENTRY.title]:t, [FORM_ENTRY.author]:pickedAuthor, [FORM_ENTRY.publisher]:pickedPublisher, [FORM_ENTRY.url]:finalUrl, [FORM_ENTRY.reason]:rs, [FORM_ENTRY.age]:ag });
 
