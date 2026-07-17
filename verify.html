@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>書庫書名驗證工具</title>
+<title>書庫書名驗證（金石堂）</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,"PingFang TC",sans-serif;background:#F7F5F2;color:#3D3229;padding:14px;font-size:14px;line-height:1.6}
@@ -36,30 +36,30 @@ h1{font-size:17px;margin-bottom:4px}
 .warnbox{background:#FFF8E8;border:1px solid #F0DCA8;border-radius:9px;padding:9px 11px;font-size:10.5px;color:#8A6D3B;line-height:1.75;margin-bottom:11px}
 </style></head><body>
 
-<h1>📚 書庫書名驗證</h1>
-<div class="sub">用 Google 圖書比對書庫裡的 296 本書，找出書名可能寫錯的。</div>
+<h1>📚 書庫書名驗證・金石堂</h1>
+<div class="sub">用金石堂比對書庫的書名，找出可能寫錯的。</div>
 
 <div class="warnbox">
-⚠️ <b>這個工具只能給線索，不能當判決</b><br>
-Google 圖書對台灣童書的收錄並不完整，「查不到」<b>不代表</b>書庫寫錯；Google 自己的資料也可能有誤。標為「要確認」的，仍需人工判斷。
+⚠️ <b>只能給線索，不能當判決</b><br>
+金石堂是台灣書店，中文童書收錄完整，準確度比 Google 圖書高很多。但絕版書可能查不到，標為「要確認」的仍需人工判斷。
 </div>
 
 <div class="panel">
   <button class="btn go" id="go" onclick="run()">開始驗證</button>
   <button class="btn sec" id="stop" onclick="stopIt()" style="display:none">停止</button>
   <div class="pbar"><div class="pfill" id="pf"></div></div>
-  <div class="stat"><span id="prog">尚未開始</span><span id="eta"></span></div>
+  <div class="stat"><span id="prog">載入中…</span><span id="eta"></span></div>
   <div class="counts">
     <div class="cbox c-ok"><b id="n-ok">0</b><span>書名相符</span></div>
     <div class="cbox c-warn"><b id="n-warn">0</b><span>要確認</span></div>
     <div class="cbox c-none"><b id="n-none">0</b><span>查不到</span></div>
   </div>
-  <div class="hint">中途關掉沒關係，進度會存著，下次按「開始驗證」會從上次的地方接下去。</div>
+  <div class="hint">中途關掉沒關係，進度會存著，下次按「開始驗證」接著跑。</div>
 </div>
 
 <div class="panel" id="rp" style="display:none">
   <b style="font-size:13px">⚠️ 要確認的書</b>
-  <div class="hint">左邊是書庫寫的，右邊是 Google 圖書查到的。</div>
+  <div class="hint">左邊是書庫寫的，右邊是金石堂查到的。</div>
   <div id="list"></div>
 </div>
 
@@ -70,116 +70,169 @@ Google 圖書對台灣童書的收錄並不完整，「查不到」<b>不代表<
 </div>
 
 <script>
-const API="https://books-senbei.vercel.app/api/scrape";
-const BOOKS=[{"t":"不見不見，哇！","a":"松谷美代子","p":"信誼","g":"0–2歲"},{"t":"洗澡澡","a":"松谷美代子","p":"信誼","g":"0–2歲"},{"t":"好可愛的臉","a":"松谷美代子","p":"信誼","g":"0–2歲"},{"t":"好餓的毛毛蟲","a":"艾瑞卡爾","p":"上誼","g":"0–2歲"},{"t":"棕色的熊，棕色的熊，你在看什麼","a":"艾瑞卡爾","p":"上誼","g":"0–2歲"},{"t":"從頭動到腳","a":"艾瑞卡爾","p":"上誼","g":"0–2歲"},{"t":"好安靜的蟋蟀","a":"艾瑞卡爾","p":"上誼","g":"0–2歲"},{"t":"拼拼湊湊的變色龍","a":"艾瑞卡爾","p":"上誼","g":"0–2歲"},{"t":"小金魚逃走了","a":"五味太郎","p":"信誼","g":"0–2歲"},{"t":"窗外送來的禮物","a":"五味太郎","p":"上誼","g":"0–2歲"},{"t":"大家來大便","a":"五味太郎","p":"漢聲","g":"0–2歲"},{"t":"格力和格拉","a":"中川李枝子","p":"信誼","g":"0–2歲"},{"t":"小白熊煎鬆餅","a":"若山憲","p":"小魯","g":"0–2歲"},{"t":"噠噠噠，火車來了","a":"安西水丸","p":"上誼","g":"0–2歲"},{"t":"水果","a":"平山和子","p":"信誼","g":"0–2歲"},{"t":"蔬菜","a":"平山和子","p":"信誼","g":"0–2歲"},{"t":"晚安月亮","a":"瑪格麗特懷茲布朗","p":"上誼","g":"0–2歲"},{"t":"逃家小兔","a":"瑪格麗特懷茲布朗","p":"上誼","g":"0–2歲"},{"t":"猜猜我有多愛你","a":"山姆麥克布雷尼","p":"上誼","g":"0–2歲"},{"t":"抱抱","a":"傑茲阿波羅","p":"上誼","g":"0–2歲"},{"t":"你是我媽媽嗎","a":"P.D.伊斯特曼","p":"遠流","g":"0–2歲"},{"t":"小藍和小黃","a":"李歐李奧尼","p":"上誼","g":"0–2歲"},{"t":"好餓的小蛇","a":"宮西達也","p":"小魯","g":"0–2歲"},{"t":"鼠小弟的小背心","a":"中江嘉男","p":"上誼","g":"0–2歲"},{"t":"毛毛毛毛","a":"谷川俊太郎","p":"上誼","g":"0–2歲"},{"t":"小熊睡不著","a":"馬丁韋德爾","p":"上誼","g":"0–2歲"},{"t":"晚安，大猩猩","a":"佩吉瑞特曼","p":"上誼","g":"0–2歲"},{"t":"十個手指頭和十個腳趾頭","a":"梅姆福克斯","p":"小魯","g":"0–2歲"},{"t":"我的衣裳","a":"西卷茅子","p":"青林","g":"0–2歲"},{"t":"抱住了！","a":"三浦太郎","p":"上誼","g":"0–2歲"},{"t":"蹦！","a":"松岡達英","p":"上誼","g":"0–2歲"},{"t":"月亮，你好嗎","a":"弗蘭克阿施","p":"上誼","g":"0–2歲"},{"t":"我們要去捉狗熊","a":"麥可羅森","p":"上誼","g":"0–2歲"},{"t":"小魚散步","a":"陳致元","p":"信誼","g":"0–2歲"},{"t":"波波系列","a":"露西卡辛斯","p":"上誼","g":"0–2歲"},{"t":"小雞系列","a":"工藤紀子","p":"小魯","g":"0–2歲"},{"t":"That's not my... 觸摸書系列","a":"Usborne","p":"禾流","g":"0–2歲"},{"t":"棉花兔，摸一摸","a":"桃樂西坤哈特","p":"上誼","g":"0–2歲"},{"t":"小黃點","a":"赫威托雷","p":"上誼","g":"0–2歲"},{"t":"點點玩聲音","a":"赫威托雷","p":"上誼","g":"0–2歲"},{"t":"一起來畫畫","a":"赫威托雷","p":"上誼","g":"0–2歲"},{"t":"親愛的動物園","a":"羅德坎貝爾","p":"上誼","g":"0–2歲"},{"t":"點點在哪裡","a":"艾瑞克希爾","p":"上誼","g":"0–2歲"},{"t":"猜一猜 我是誰？","a":"賴馬","p":"親子天下","g":"0–2歲"},{"t":"胖胖麵包電車","a":"日本繪本","p":"采實","g":"0–2歲"},{"t":"FOOD超人手指點讀－生活圖鑑","a":"風車編輯部","p":"風車","g":"0–2歲"},{"t":"FOOD超人手指點讀－我愛幼兒園","a":"風車編輯部","p":"風車","g":"0–2歲"},{"t":"我的第一本認知學習翻翻書－我長大了","a":"風車編輯部","p":"風車","g":"0–2歲"},{"t":"小鼠梅西 Maisy 點讀版系列","a":"露西卡辛斯","p":"禾流","g":"0–2歲"},{"t":"喀嚓！蛋破掉了！","a":"禾流編輯部","p":"禾流","g":"0–2歲"},{"t":"我們一起找大熊【立體版】","a":"麥可羅森","p":"禾流","g":"0–2歲"},{"t":"發條小汽車－環遊大世界","a":"禾流編輯部","p":"禾流","g":"0–2歲"},{"t":"發條小瓢蟲－環遊大花園","a":"禾流編輯部","p":"禾流","g":"0–2歲"},{"t":"發條小火車／小巴士／推土機","a":"禾流編輯部","p":"禾流","g":"0–2歲"},{"t":"我的小小圖書館","a":"上誼編輯部","p":"上誼","g":"0–2歲"},{"t":"米菲兔硬頁書系列","a":"迪克布魯納","p":"青林","g":"0–2歲"},{"t":"比利，你在哪裡？","a":"硬頁遊戲書","p":"—","g":"0–2歲"},{"t":"摸摸看！我的超大啟萌書","a":"觸感認知書","p":"—","g":"0–2歲"},{"t":"愛的抱抱互動指偶書","a":"華幼編輯部","p":"華幼","g":"0–2歲"},{"t":"彩虹洞洞書（中英雙語）","a":"華幼編輯部","p":"華幼","g":"0–2歲"},{"t":"小汽車探險隊","a":"關根知未","p":"—","g":"0–2歲"},{"t":"堆呀堆，變大山","a":"花山一美","p":"采實","g":"0–2歲"},{"t":"我變成一隻噴火龍了！","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"生氣王子","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"愛哭公主","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"勇敢小火車","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"慌張先生","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"早起的一天","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"帕拉帕拉山的妖怪","a":"賴馬","p":"親子天下","g":"3–5歲"},{"t":"十二生肖的故事","a":"賴馬","p":"和英","g":"3–5歲"},{"t":"這是蘋果嗎？也許是喔","a":"吉竹伸介","p":"三采","g":"3–5歲"},{"t":"脫不下來啊！","a":"吉竹伸介","p":"三采","g":"3–5歲"},{"t":"爺爺的天堂筆記本","a":"吉竹伸介","p":"三采","g":"3–5歲"},{"t":"做一個機器人 假裝是我","a":"吉竹伸介","p":"三采","g":"3–5歲"},{"t":"猜猜我在比什麼？","a":"吉竹伸介","p":"三采","g":"3–5歲"},{"t":"你看起來好像很好吃","a":"宮西達也","p":"小魯","g":"3–5歲"},{"t":"我討厭媽媽！","a":"宮西達也","p":"三之三","g":"3–5歲"},{"t":"永遠愛你","a":"宮西達也","p":"小魯","g":"3–5歲"},{"t":"我是霸王龍","a":"宮西達也","p":"小魯","g":"3–5歲"},{"t":"Guji Guji","a":"陳致元","p":"信誼","g":"3–5歲"},{"t":"一片披薩一塊錢","a":"陳致元","p":"和英","g":"3–5歲"},{"t":"一百隻羊","a":"陳致元","p":"和英","g":"3–5歲"},{"t":"好想吃榴槤","a":"劉旭恭","p":"信誼","g":"3–5歲"},{"t":"我有友情要出租","a":"方素珍","p":"國語日報","g":"3–5歲"},{"t":"媽媽買綠豆！","a":"曾陽晴","p":"信誼","g":"3–5歲"},{"t":"月亮忘記了","a":"幾米","p":"大塊","g":"3–5歲"},{"t":"野獸國","a":"莫里斯桑達克","p":"漢聲","g":"3–5歲"},{"t":"菲菲生氣了","a":"莫莉班","p":"三之三","g":"3–5歲"},{"t":"花婆婆","a":"芭芭拉庫尼","p":"三之三","g":"3–5歲"},{"t":"彩虹魚","a":"馬科斯普費斯特","p":"青林","g":"3–5歲"},{"t":"爺爺一定有辦法","a":"菲比吉爾曼","p":"上誼","g":"3–5歲"},{"t":"大衛，不可以！","a":"大衛夏農","p":"漢聲","g":"3–5歲"},{"t":"活了一百萬次的貓","a":"佐野洋子","p":"步步","g":"3–5歲"},{"t":"小黑魚","a":"李歐李奧尼","p":"上誼","g":"3–5歲"},{"t":"費德烈","a":"李歐李奧尼","p":"上誼","g":"3–5歲"},{"t":"一寸蟲","a":"李歐李奧尼","p":"大穎","g":"3–5歲"},{"t":"是誰嗯嗯在我的頭上","a":"韋納荷爾茲瓦斯","p":"三之三","g":"3–5歲"},{"t":"鱷魚怕怕 牙醫怕怕","a":"五味太郎","p":"上誼","g":"3–5歲"},{"t":"第一次上街買東西","a":"筒井賴子","p":"漢聲","g":"3–5歲"},{"t":"象象和小豬系列","a":"莫威廉斯","p":"東雨","g":"3–5歲"},{"t":"蚯蚓的日記","a":"多琳克羅寧","p":"上誼","g":"3–5歲"},{"t":"我媽媽","a":"安東尼布朗","p":"格林","g":"3–5歲"},{"t":"我爸爸","a":"安東尼布朗","p":"格林","g":"3–5歲"},{"t":"勇敢的消防車","a":"戶田和代","p":"小魯","g":"3–5歲"},{"t":"卡車小藍出發嘍！","a":"愛麗絲雪特","p":"小魯","g":"3–5歲"},{"t":"新手駕駛巴士弟弟","a":"信實","p":"采實","g":"3–5歲"},{"t":"彩色怪獸去上學","a":"安娜．耶拿絲","p":"三采","g":"3–5歲"},{"t":"怕浪費奶奶","a":"真珠真理子","p":"三之三","g":"3–5歲"},{"t":"琪莉和琪莉莉","a":"獅子文六","p":"采實","g":"3–5歲"},{"t":"聽說小豬變地瓜了！","a":"宮西達也","p":"—","g":"3–5歲"},{"t":"小毛，不可以！","a":"大衛．夏儂","p":"—","g":"3–5歲"},{"t":"麵包小偷系列","a":"柴田啓子","p":"采實","g":"3–5歲"},{"t":"野貓軍團系列","a":"工藤紀子","p":"台灣東方","g":"3–5歲"},{"t":"救援隊車車出任務系列","a":"正高素子／鎌田步","p":"小天下","g":"3–5歲"},{"t":"情緒大飯店","a":"莉迪亞．布蘭科維琪","p":"小典藏","g":"3–5歲"},{"t":"出發吧！車車大集合","a":"申智允／閔智娜","p":"采實","g":"3–5歲"},{"t":"各種各樣的交通工具：車子大書","a":"茉伊拉巴特菲爾德","p":"維京","g":"3–5歲"},{"t":"汽車大集合（3冊）","a":"德國圖鑑繪本","p":"—","g":"3–5歲"},{"t":"會動的立體小汽車－超級工程車","a":"禾流編輯部","p":"禾流","g":"3–5歲"},{"t":"發條小飛機－環遊大世界","a":"禾流編輯部","p":"禾流","g":"3–5歲"},{"t":"想問什麼翻翻書－關於長大你想問什麼","a":"Usborne","p":"禾流","g":"3–5歲"},{"t":"想問什麼翻翻書－關於藝術你想知道什麼","a":"Usborne","p":"禾流","g":"3–5歲"},{"t":"想問什麼翻翻書－關於病菌你想知道什麼","a":"Usborne","p":"禾流","g":"3–5歲"},{"t":"新傳說 十二生肖","a":"禾流編輯部","p":"禾流","g":"3–5歲"},{"t":"人體知識立體書：歡迎光臨牙齒王國","a":"禾流編輯部","p":"禾流","g":"3–5歲"},{"t":"交通工具迷宮","a":"香川元太郎","p":"小天下","g":"3–5歲"},{"t":"POP-UP！趣味認知立體書","a":"華碩編輯部","p":"華碩","g":"3–5歲"},{"t":"我是消防車小司機（職業體驗繪本）","a":"職業體驗系列","p":"五南","g":"3–5歲"},{"t":"美麗的立體童話書","a":"禾流編輯部","p":"禾流","g":"3–5歲"},{"t":"現身吧 妖怪！","a":"Usborne","p":"禾流","g":"3–5歲"},{"t":"我的第一本認知學習翻翻書","a":"風車編輯部","p":"風車","g":"3–5歲"},{"t":"FOOD超人點讀系列","a":"風車編輯部","p":"風車","g":"3–5歲"},{"t":"交通工具大集合（2冊）","a":"親親文化編輯部","p":"親親文化","g":"3–5歲"},{"t":"寶寶的第一套乘物繪本（3冊）","a":"日本乘物繪本","p":"—","g":"3–5歲"},{"t":"角落小夥伴紙模型遊戲書","a":"主婦與生活社","p":"—","g":"3–5歲"},{"t":"屁屁偵探讀本系列","a":"Troll","p":"遠流","g":"小一小二"},{"t":"怪傑佐羅力系列","a":"原裕","p":"親子天下","g":"小一小二"},{"t":"神奇樹屋系列","a":"瑪麗波奧斯本","p":"小天下","g":"小一小二"},{"t":"字的傳奇系列","a":"林世仁","p":"親子天下","g":"小一小二"},{"t":"丁小飛校園日記","a":"郭瀞婷","p":"親子天下","g":"小一小二"},{"t":"小火龍系列","a":"哲也","p":"親子天下","g":"小一小二"},{"t":"閱讀123系列","a":"多位台灣作家","p":"親子天下","g":"小一小二"},{"t":"青蛙和蟾蜍系列","a":"阿諾德洛貝爾","p":"上誼","g":"小一小二"},{"t":"葛瑞的囧日記（1-3）","a":"傑夫金尼","p":"未來出版","g":"小一小二"},{"t":"月光","a":"施政廷","p":"—","g":"小一小二"},{"t":"阿公的跟屁蟲","a":"奧黛麗圓","p":"—","g":"小一小二"},{"t":"森林裡倒下一棵樹","a":"林廉恩","p":"—","g":"小一小二"},{"t":"我們去釣魚","a":"邱承宗","p":"小魯","g":"小一小二"},{"t":"騎著恐龍去上學","a":"劉思源","p":"小魯","g":"小一小二"},{"t":"土地和太陽的孩子","a":"伊誕．巴瓦瓦隆","p":"—","g":"小一小二"},{"t":"三個問號偵探團","a":"多位作者","p":"親子天下","g":"小一小二"},{"t":"小妖怪系列","a":"日本橋梁書","p":"—","g":"小一小二"},{"t":"口袋神探系列","a":"凱西陳","p":"—","g":"小一小二"},{"t":"屁屁丹迪系列","a":"日本橋梁書","p":"—","g":"小一小二"},{"t":"玉山的新外套","a":"—","p":"—","g":"小一小二"},{"t":"甘丹小學新生任務","a":"—","p":"親子天下","g":"小一小二"},{"t":"神奇鎮上的神奇餐廳","a":"—","p":"—","g":"小一小二"},{"t":"青蛙和蟾蜍：春夏秋冬","a":"羅北兒","p":"遠流","g":"小一小二"},{"t":"神奇柑仔店系列","a":"廣嶋玲子","p":"親子天下","g":"小一小二"},{"t":"達克比辦案系列","a":"胡妙芬","p":"親子天下","g":"小一小二"},{"t":"未來兒童（月刊）","a":"未來出版","p":"未來出版","g":"小一小二"},{"t":"小行星幼兒誌","a":"親子天下","p":"親子天下","g":"小一小二"},{"t":"神奇樹屋小百科","a":"瑪麗波奧斯本","p":"小天下","g":"小一小二"},{"t":"威利在哪裡？","a":"馬丁韓福特","p":"親子天下","g":"小一小二"},{"t":"想問什麼翻翻書系列","a":"Usborne","p":"禾流","g":"小一小二"},{"t":"我的第一套小小百科","a":"Usborne","p":"—","g":"小一小二"},{"t":"昆蟲圖鑑","a":"邱承宗等","p":"—","g":"小一小二"},{"t":"恐龍大百科","a":"多版本","p":"—","g":"小一小二"},{"t":"仙靈傳奇系列","a":"陳郁如","p":"親子天下","g":"小三小四"},{"t":"修煉系列","a":"陳郁如","p":"小兵","g":"小三小四"},{"t":"窗邊的小荳荳","a":"黑柳徹子","p":"親子天下","g":"小三小四"},{"t":"草房子","a":"曹文軒","p":"小魯","g":"小三小四"},{"t":"奇蹟男孩","a":"R.J.帕拉秋","p":"親子天下","g":"小三小四"},{"t":"夏綠蒂的網","a":"E.B.懷特","p":"聯經","g":"小三小四"},{"t":"了不起的狐狸爸爸","a":"羅爾德達爾","p":"小天下","g":"小三小四"},{"t":"小王子","a":"安東尼德聖修伯里","p":"多版本","g":"小三小四"},{"t":"少年小樹之歌","a":"佛瑞斯特卡特","p":"小知堂","g":"小三小四"},{"t":"秘密花園","a":"法蘭西絲霍奇森柏內特","p":"多版本","g":"小三小四"},{"t":"長腿叔叔","a":"珍韋伯斯特","p":"多版本","g":"小三小四"},{"t":"柳林中的風聲","a":"肯尼斯葛拉漢","p":"多版本","g":"小三小四"},{"t":"瑪蒂達","a":"羅爾德達爾","p":"小天下","g":"小三小四"},{"t":"巧克力冒險工廠","a":"羅爾德達爾","p":"小天下","g":"小三小四"},{"t":"楓之谷大冒險系列","a":"多位作者","p":"—","g":"小三小四"},{"t":"貓頭鷹王國系列","a":"凱瑟琳拉斯基","p":"—","g":"小三小四"},{"t":"福爾摩斯（少年版）","a":"柯南道爾","p":"多版本","g":"小三小四"},{"t":"口袋神探","a":"凱西陳","p":"—","g":"小三小四"},{"t":"神探邁克狐","a":"多位作者","p":"—","g":"小三小四"},{"t":"鬼燈君的妖怪偵探團","a":"富安陽子","p":"小漫遊","g":"小三小四"},{"t":"魔法十年屋","a":"廣嶋玲子","p":"—","g":"小三小四"},{"t":"妖怪托顧所","a":"—","p":"步步","g":"小三小四"},{"t":"希臘羅馬神話漫畫","a":"—","p":"三采","g":"小三小四"},{"t":"粉靈豆","a":"安德魯．克萊門斯","p":"遠流","g":"小三小四"},{"t":"狼人生存遊戲","a":"—","p":"—","g":"小三小四"},{"t":"君偉上小學","a":"王淑芬","p":"親子天下","g":"小三小四"},{"t":"用點心學校","a":"鄭宗弦","p":"小天下","g":"小三小四"},{"t":"長襪皮皮","a":"林格倫","p":"小麥田","g":"小三小四"},{"t":"賽雷三分鐘漫畫西遊記","a":"賽雷","p":"—","g":"小三小四"},{"t":"達克比辦案（完整系列）","a":"胡妙芬","p":"親子天下","g":"小三小四"},{"t":"科學實驗王系列","a":"Story a.","p":"三采","g":"小三小四"},{"t":"尋寶記系列","a":"多位作者","p":"三采","g":"小三小四"},{"t":"海洋100問","a":"台灣海洋專家群","p":"親子天下","g":"小三小四"},{"t":"天氣100問","a":"台灣氣象專家群","p":"親子天下","g":"小三小四"},{"t":"Why? 系列","a":"韓國科學漫畫","p":"三采","g":"小三小四"},{"t":"我的第一本科學漫畫書","a":"洪在徹","p":"三采","g":"小三小四"},{"t":"漫畫大英百科","a":"BomBom Story","p":"三采","g":"小三小四"},{"t":"少年科學偵探CSI","a":"高元洪","p":"三采","g":"小三小四"},{"t":"科學少年（月刊）","a":"科學少年編輯部","p":"遠流","g":"小三小四"},{"t":"台灣特有種","a":"公視／木馬","p":"木馬","g":"小三小四"},{"t":"迷宮系列","a":"香川元太郎","p":"小天下","g":"小三小四"},{"t":"仙靈傳奇（完整系列）","a":"陳郁如","p":"親子天下","g":"小五小六"},{"t":"哈比人","a":"J.R.R.托爾金","p":"聯經","g":"小五小六"},{"t":"城南舊事","a":"林海音","p":"格林","g":"小五小六"},{"t":"紅髮安妮","a":"露西蒙哥馬利","p":"多版本","g":"小五小六"},{"t":"愛麗絲夢遊仙境","a":"路易斯卡羅","p":"多版本","g":"小五小六"},{"t":"湯姆歷險記","a":"馬克吐溫","p":"多版本","g":"小五小六"},{"t":"吹小號的天鵝","a":"E.B.懷特","p":"聯經","g":"小五小六"},{"t":"銀河鐵道之夜","a":"宮澤賢治","p":"木馬","g":"小五小六"},{"t":"魔女宅急便","a":"角野榮子","p":"小天下","g":"小五小六"},{"t":"時間的皺摺","a":"馬德琳蘭歌","p":"博識","g":"小五小六"},{"t":"福爾摩斯全集（青少年版）","a":"柯南道爾","p":"多版本","g":"小五小六"},{"t":"怪奇孤兒院","a":"蘭森瑞格斯","p":"—","g":"小五小六"},{"t":"波西傑克森系列","a":"雷克萊爾頓","p":"遠流","g":"小五小六"},{"t":"綠野仙蹤","a":"李曼法蘭克鮑姆","p":"多版本","g":"小五小六"},{"t":"哈利波特系列","a":"J.K.羅琳","p":"皇冠","g":"小五小六"},{"t":"貓戰士系列","a":"艾琳杭特","p":"晨星","g":"小五小六"},{"t":"海洋100問／天氣100問","a":"台灣專家群","p":"親子天下","g":"小五小六"},{"t":"未來少年（月刊）","a":"未來出版","p":"未來出版","g":"小五小六"},{"t":"少年讀history／少年讀科學系列","a":"多位作者","p":"—","g":"小五小六"},{"t":"漫畫科學世界史／中國史","a":"多位作者","p":"—","g":"小五小六"},{"t":"DK兒童百科全書","a":"DK編輯部","p":"—","g":"小五小六"},{"t":"國家地理雜誌 兒童版","a":"National Geographic","p":"—","g":"小五小六"},{"t":"漫畫萬物由來／科學史","a":"多位作者","p":"—","g":"小五小六"},{"t":"觀念數學／觀念物理（入門冊）","a":"多位作者","p":"天下文化","g":"小五小六"},{"t":"解憂雜貨店","a":"東野圭吾","p":"皇冠","g":"國中"},{"t":"偷書賊","a":"馬克斯蘇薩克","p":"木馬","g":"國中"},{"t":"牧羊少年奇幻之旅","a":"保羅科爾賀","p":"時報","g":"國中"},{"t":"追風箏的孩子","a":"卡勒德胡賽尼","p":"木馬","g":"國中"},{"t":"老人與海","a":"海明威","p":"多版本","g":"國中"},{"t":"動物農莊","a":"喬治歐威爾","p":"多版本","g":"國中"},{"t":"少年Pi的奇幻漂流","a":"揚馬泰爾","p":"皇冠","g":"國中"},{"t":"三體","a":"劉慈欣","p":"貓頭鷹","g":"國中"},{"t":"告白","a":"湊佳苗","p":"時報","g":"國中"},{"t":"惡意","a":"東野圭吾","p":"獨步","g":"國中"},{"t":"我是貓","a":"夏目漱石","p":"多版本","g":"國中"},{"t":"那些年，我們一起追的女孩","a":"九把刀","p":"春天","g":"國中"},{"t":"天藍色的彼岸","a":"艾力克思雪帕德","p":"小天下","g":"國中"},{"t":"偷影子的人","a":"馬克李維","p":"商周","g":"國中"},{"t":"饑餓遊戲","a":"蘇珊柯林斯","p":"大塊","g":"國中"},{"t":"蜜蜂與遠雷","a":"恩田陸","p":"圓神","g":"國中"},{"t":"模仿犯","a":"宮部美幸","p":"臉譜","g":"國中"},{"t":"魔戒三部曲","a":"J.R.R.托爾金","p":"聯經","g":"國中"},{"t":"蘇菲的世界","a":"喬斯坦賈德","p":"木馬","g":"國中"},{"t":"觀念物理／觀念化學／觀念數學","a":"休伊特等","p":"天下文化","g":"國中"},{"t":"如果歷史是一群喵","a":"肥志","p":"野人","g":"國中"},{"t":"漫畫世界史／中國史套書","a":"多位作者","p":"—","g":"國中"},{"t":"人類的故事","a":"房龍","p":"—","g":"國中"},{"t":"槍炮、病菌與鋼鐵（青少年版）","a":"賈德戴蒙","p":"時報","g":"國中"},{"t":"國家地理雜誌","a":"National Geographic","p":"—","g":"國中"},{"t":"寫給青少年的○○系列","a":"多位作者","p":"—","g":"國中"},{"t":"台灣特有種／台灣生態系列","a":"公視／木馬等","p":"木馬","g":"國中"},{"t":"BBC知識國際中文版","a":"BBC","p":"—","g":"國中"},{"t":"少年讀哲學／少年讀經濟","a":"多位作者","p":"—","g":"國中"},{"t":"挪威的森林","a":"村上春樹","p":"時報","g":"高中"},{"t":"麥田捕手","a":"J.D.沙林傑","p":"麥田","g":"高中"},{"t":"人間失格","a":"太宰治","p":"多版本","g":"高中"},{"t":"1984","a":"喬治歐威爾","p":"多版本","g":"高中"},{"t":"美麗新世界","a":"阿道斯赫胥黎","p":"多版本","g":"高中"},{"t":"異鄉人","a":"阿爾貝卡繆","p":"多版本","g":"高中"},{"t":"傲慢與偏見","a":"珍奧斯汀","p":"多版本","g":"高中"},{"t":"了不起的蓋茨比","a":"費茲傑羅","p":"多版本","g":"高中"},{"t":"百年孤寂","a":"馬奎斯","p":"皇冠","g":"高中"},{"t":"罪與罰","a":"杜斯妥也夫斯基","p":"多版本","g":"高中"},{"t":"流浪者之歌","a":"赫曼赫塞","p":"遠流","g":"高中"},{"t":"徬徨少年時","a":"赫曼赫塞","p":"遠流","g":"高中"},{"t":"卡夫卡海邊","a":"村上春樹","p":"時報","g":"高中"},{"t":"生命中不能承受之輕","a":"米蘭昆德拉","p":"皇冠","g":"高中"},{"t":"巨流河","a":"齊邦媛","p":"天下文化","g":"高中"},{"t":"哈姆雷特","a":"莎士比亞","p":"多版本","g":"高中"},{"t":"廚房","a":"吉本芭娜娜","p":"時報","g":"高中"},{"t":"齊瓦哥醫生","a":"巴斯特納克","p":"—","g":"高中"},{"t":"莊子（選讀）","a":"莊周","p":"多版本","g":"高中"},{"t":"被討厭的勇氣","a":"岸見一郎／古賀史健","p":"究竟","g":"高中"},{"t":"人類大歷史","a":"哈拉瑞","p":"天下文化","g":"高中"},{"t":"槍炮、病菌與鋼鐵","a":"賈德戴蒙","p":"時報","g":"高中"},{"t":"正義：一場思辨之旅","a":"邁可桑德爾","p":"雅言","g":"高中"},{"t":"快思慢想","a":"康納曼","p":"天下文化","g":"高中"},{"t":"自私的基因","a":"理查道金斯","p":"天下文化","g":"高中"},{"t":"時間簡史","a":"史蒂芬霍金","p":"大塊","g":"高中"},{"t":"觀念物理（全套）","a":"休伊特","p":"天下文化","g":"高中"},{"t":"費曼物理學講義","a":"理查費曼","p":"天下文化","g":"高中"},{"t":"象與騎象人","a":"強納森海德特","p":"究竟","g":"高中"},{"t":"原子習慣","a":"詹姆斯克利爾","p":"方智","g":"高中"},{"t":"我可能錯了","a":"比約恩納提科","p":"先覺","g":"高中"},{"t":"中年之路","a":"詹姆斯霍利斯","p":"楓樹林","g":"高中"},{"t":"科學人雜誌","a":"Scientific American","p":"遠流","g":"高中"},{"t":"連結：從石器時代到AI紀元","a":"哈拉瑞","p":"天下文化","g":"高中"}];
-let running=false, R={};
-try{const s=localStorage.getItem("verify_r"); if(s) R=JSON.parse(s);}catch(e){}
+const API = "https://books-senbei.vercel.app/api/scrape";
+let BOOKS = [];
+let running = false, R = {};
+try { const s = localStorage.getItem("verify_ks"); if (s) R = JSON.parse(s); } catch(e) {}
 
-const norm=s=>(s||"").replace(/[\s！!？?。，,、：:；;（）()「」『』【】《》〈〉·・\-–—_~～]/g,"").toLowerCase();
-
-function classify(mine, items){
-  if(!items.length) return {k:"none"};
-  const nm=norm(mine);
-  for(const it of items){
-    const full=norm(it.title+(it.subtitle||""));
-    if(norm(it.title)===nm || full===nm) return {k:"ok", hit:it};
-  }
-  // 書名互相包含也算相符（例如書庫寫簡稱、Google 是全名）
-  for(const it of items){
-    const g=norm(it.title);
-    if(g && nm && (g.includes(nm)||nm.includes(g))) return {k:"ok", hit:it};
-  }
-  return {k:"warn", cands:items.slice(0,3)};
+// 空白字元直接列舉（半形空格、全形空格、tab、換行），標點類別把 - 放最後
+// 這樣整個正則不需要任何跳脫字元，避免產生檔案時被多加一層反斜線
+const SPACES = /[ 　\t\n\r]/g;
+const PUNCT = /[！!？?。，,、：:；;（）()「」『』【】《》〈〉·・～~＿_–—-]/g;
+function norm(s) {
+  return String(s == null ? "" : s).replace(SPACES, "").replace(PUNCT, "").toLowerCase();
 }
 
-function paint(){
-  const done=Object.keys(R).length;
-  const pct=Math.round(done/BOOKS.length*100);
-  document.getElementById("pf").style.width=pct+"%";
-  document.getElementById("prog").textContent=done+" / "+BOOKS.length+"　("+pct+"%)";
-  const vals=Object.values(R);
-  const ok=vals.filter(x=>x.k==="ok").length;
-  const wn=vals.filter(x=>x.k==="warn").length;
-  const nn=vals.filter(x=>x.k==="none").length;
-  document.getElementById("n-ok").textContent=ok;
-  document.getElementById("n-warn").textContent=wn;
-  document.getElementById("n-none").textContent=nn;
+// Google 圖書收錄大量期刊、報紙、書目、年鑑，這些內容裡提到書名就會被撈出來，
+// 全是雜訊，先擋掉，否則「蔬菜」會對到「全國總書目」這種完全不相關的東西
+const NOISE = /月刊|週刊|周刊|日報|时报|時報|年鑑|年鉴|總書目|总书目|書目|书目|出版年|文匯|文汇|新書資訊|中央日報|盛京|公報|学报|學報|期刊|雜誌|杂志|論文|论文|研究報告|索引|目錄|目录|大全|全集|文集|選集|选集/;
 
-  const warns=BOOKS.filter(b=>R[b.t]&&R[b.t].k==="warn");
-  if(warns.length){
-    document.getElementById("rp").style.display="block";
-    document.getElementById("list").innerHTML=warns.map(b=>{
-      const r=R[b.t];
-      return '<div class="item"><div class="mine">'+esc(b.t)+' <em>／'+esc(b.a)+'・'+esc(b.p)+'・'+esc(b.g)+'</em></div>'
-        +'<div class="goog">'+(r.cands||[]).map(c=>
-          '<div>'+esc(c.title)+(c.subtitle?'：'+esc(c.subtitle):'')
-          +(c.author?' <em style="color:#9B8B7A">／'+esc(c.author)+'</em>':'')
-          +(c.publisher?'・'+esc(c.publisher):'')
-          +(c.year?'・'+c.year:'')
-          +'<span class="tag '+(c.tw?'t-tw':'t-non')+'">'+(c.tw?'台版':'非台版')+'</span></div>'
-        ).join('')+'</div></div>';
+function overlapRate(a, b) {
+  const na = norm(a), nb = norm(b);
+  if (!na.length) return 0;
+  let hit = 0;
+  for (const ch of na) if (nb.includes(ch)) hit++;
+  return hit / na.length;
+}
+
+function classify(mine, items) {
+  if (!items || !items.length) return { k: "none" };
+  const nm = norm(mine);
+
+  // 先濾掉期刊報紙這類雜訊，以及跟書名幾乎無關的（字元重疊低於一半）
+  const cands = items.filter(it => {
+    const t = it.title || "";
+    if (!t) return false;
+    if (it.ebook) return false;              // 電子書版本不算，只看紙本
+    if (NOISE.test(t)) return false;
+    return overlapRate(mine, t) >= 0.45;     // 金石堂資料乾淨，門檻可略放寬
+  });
+  if (!cands.length) return { k: "none" };
+
+  // 完全相符（含把副標接上去比對）
+  for (const it of cands) {
+    if (norm(it.title) === nm) return { k: "ok", hit: it };
+    if (norm(it.title + (it.subtitle || "")) === nm) return { k: "ok", hit: it };
+  }
+  // 互相包含也算相符：書庫寫簡稱、Google 是全名（或反過來）
+  for (const it of cands) {
+    const g = norm(it.title);
+    if (g && nm && (g.includes(nm) || nm.includes(g))) return { k: "ok", hit: it };
+  }
+  return { k: "warn", cands: cands.slice(0, 3) };
+}
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function paint() {
+  const done = Object.keys(R).length;
+  const pct = BOOKS.length ? Math.round(done / BOOKS.length * 100) : 0;
+  document.getElementById("pf").style.width = pct + "%";
+  document.getElementById("prog").textContent = done + " / " + BOOKS.length + "　(" + pct + "%)";
+  const vals = Object.values(R);
+  document.getElementById("n-ok").textContent = vals.filter(x => x.k === "ok").length;
+  document.getElementById("n-warn").textContent = vals.filter(x => x.k === "warn").length;
+  document.getElementById("n-none").textContent = vals.filter(x => x.k === "none").length;
+
+  const warns = BOOKS.filter(b => R[b.t] && R[b.t].k === "warn");
+  if (warns.length) {
+    document.getElementById("rp").style.display = "block";
+    document.getElementById("list").innerHTML = warns.map(b => {
+      const r = R[b.t];
+      return '<div class="item"><div class="mine">' + esc(b.t) + ' <em>／' + esc(b.a) + '・' + esc(b.p) + '・' + esc(b.g) + '</em></div>'
+        + '<div class="goog">' + (r.cands || []).map(c =>
+          '<div>' + esc(c.title)
+          + (c.author ? ' <em style="color:#9B8B7A">／' + esc(c.author) + '</em>' : '')
+          + (c.publisher ? '・' + esc(c.publisher) : '')
+          + '</div>'
+        ).join('') + '</div></div>';
     }).join('');
   }
-  if(done>0){
-    document.getElementById("cp").style.display="block";
-    document.getElementById("out").value=report();
+  if (done > 0) {
+    document.getElementById("cp").style.display = "block";
+    document.getElementById("out").value = report();
   }
 }
-function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
-function report(){
-  let o="=== 書庫驗證結果 ===\n";
-  const vals=Object.values(R);
-  o+="已驗證 "+vals.length+"/"+BOOKS.length+"　相符 "+vals.filter(x=>x.k==="ok").length
-    +"　要確認 "+vals.filter(x=>x.k==="warn").length+"　查不到 "+vals.filter(x=>x.k==="none").length+"\n\n";
-  o+="--- 要確認 ---\n";
-  BOOKS.filter(b=>R[b.t]&&R[b.t].k==="warn").forEach(b=>{
-    o+="【"+b.t+"】"+b.a+"・"+b.p+"・"+b.g+"\n";
-    (R[b.t].cands||[]).forEach(c=>{ o+="   → "+c.title+(c.subtitle?"："+c.subtitle:"")+" ／"+(c.author||"?")+"・"+(c.publisher||"?")+"・"+(c.year||"?")+(c.tw?"・台版":"")+"\n"; });
+function report() {
+  const NL = String.fromCharCode(10);
+  const vals = Object.values(R);
+  let o = "=== 書庫驗證結果 ===" + NL;
+  o += "已驗證 " + vals.length + "/" + BOOKS.length + "　相符 " + vals.filter(x => x.k === "ok").length
+     + "　要確認 " + vals.filter(x => x.k === "warn").length + "　查不到 " + vals.filter(x => x.k === "none").length + NL + NL;
+  o += "--- 要確認 ---" + NL;
+  BOOKS.filter(b => R[b.t] && R[b.t].k === "warn").forEach(b => {
+    o += "【" + b.t + "】" + b.a + "・" + b.p + "・" + b.g + NL;
+    (R[b.t].cands || []).forEach(c => {
+      o += "   → " + c.title + " ／" + (c.author || "?") + "・" + (c.publisher || "?") + NL;
+    });
   });
-  o+="\n--- 查不到 ---\n";
-  o+=BOOKS.filter(b=>R[b.t]&&R[b.t].k==="none").map(b=>b.t+"（"+b.a+"）").join("\n");
+  o += NL + "--- 查不到（金石堂沒有，可能絕版或書名錯） ---" + NL;
+  o += BOOKS.filter(b => R[b.t] && R[b.t].k === "none").map(b => b.t + "（" + b.a + "）").join(NL);
   return o;
 }
 
-async function run(){
-  running=true;
-  document.getElementById("go").style.display="none";
-  document.getElementById("stop").style.display="block";
-  const t0=Date.now();
-  let n=0;
-  for(const b of BOOKS){
-    if(!running) break;
-    if(R[b.t]) continue;
+async function run() {
+  if (!BOOKS.length) { alert("書單還沒載入完，稍等一下再按"); return; }
+  running = true;
+  document.getElementById("go").style.display = "none";
+  document.getElementById("stop").style.display = "block";
+  const t0 = Date.now();
+  let n = 0;
+  for (const b of BOOKS) {
+    if (!running) break;
+    if (R[b.t]) continue;
     // 書名＋作者一起查，比單查書名精準（同名書很多）
-    const q=b.t+(b.a&&b.a!=="—"&&!/多位|編輯部/.test(b.a)?" "+b.a:"");
-    try{
-      const r=await fetch(API+"?verify="+encodeURIComponent(q));
-      const d=await r.json();
-      R[b.t]=classify(b.t, d.items||[]);
-    }catch(e){ R[b.t]={k:"none"}; }
-    try{localStorage.setItem("verify_r",JSON.stringify(R));}catch(e){}
+    const useAuthor = b.a && b.a !== "—" && !/多位|編輯部/.test(b.a);
+    const q = b.t + (useAuthor ? " " + b.a : "");
+    try {
+      const r = await fetch(API + "?ks=" + encodeURIComponent(q));
+      const d = await r.json();
+      R[b.t] = classify(b.t, d.items || []);
+    } catch (e) {
+      R[b.t] = { k: "none" };
+    }
+    try { localStorage.setItem("verify_ks", JSON.stringify(R)); } catch(e) {}
     n++;
-    const el=(Date.now()-t0)/1000;
-    const left=Math.round((BOOKS.length-Object.keys(R).length)*(el/n));
-    document.getElementById("eta").textContent="約剩 "+Math.floor(left/60)+" 分 "+(left%60)+" 秒";
+    const el = (Date.now() - t0) / 1000;
+    const left = Math.round((BOOKS.length - Object.keys(R).length) * (el / n));
+    document.getElementById("eta").textContent = "約剩 " + Math.floor(left / 60) + " 分 " + (left % 60) + " 秒";
     paint();
-    await new Promise(x=>setTimeout(x,120)); // 稍微間隔，避免打太快
+    await new Promise(x => setTimeout(x, 120));
   }
-  running=false;
-  document.getElementById("go").style.display="block";
-  document.getElementById("stop").style.display="none";
-  document.getElementById("go").textContent=Object.keys(R).length>=BOOKS.length?"重新驗證（清除進度）":"繼續驗證";
-  if(Object.keys(R).length>=BOOKS.length){
-    document.getElementById("go").onclick=()=>{ R={}; try{localStorage.removeItem("verify_r");}catch(e){} location.reload(); };
-    document.getElementById("eta").textContent="✓ 完成";
+  running = false;
+  document.getElementById("go").style.display = "block";
+  document.getElementById("stop").style.display = "none";
+  if (Object.keys(R).length >= BOOKS.length) {
+    document.getElementById("go").textContent = "重新驗證（清除進度）";
+    document.getElementById("go").onclick = () => {
+      R = {};
+      try { localStorage.removeItem("verify_ks"); } catch(e) {}
+      location.reload();
+    };
+    document.getElementById("eta").textContent = "✓ 完成";
+  } else {
+    document.getElementById("go").textContent = "繼續驗證";
   }
 }
-function stopIt(){ running=false; }
-function cp(){
-  const t=document.getElementById("out");
-  if(navigator.clipboard) navigator.clipboard.writeText(t.value).then(()=>alert("已複製"));
-  else { t.select(); document.execCommand("copy"); alert("已複製"); }
+
+function stopIt() { running = false; }
+
+function cp() {
+  const t = document.getElementById("out");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t.value).then(() => alert("已複製"));
+  } else {
+    t.select();
+    document.execCommand("copy");
+    alert("已複製");
+  }
 }
-paint();
+
+fetch("booklist.json")
+  .then(r => r.json())
+  .then(d => { BOOKS = d; paint(); })
+  .catch(e => { document.getElementById("prog").textContent = "❌ 讀不到 booklist.json"; });
 </script></body></html>
