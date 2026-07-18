@@ -65,7 +65,8 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .pub{color:#DDC7B3}
 .bx{font-size:11px;color:#7A6553;line-height:1.65}
 .kt{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
-.kt span{font-size:8.5px;background:#FBF3EA;color:#B5876A;border-radius:6px;padding:2px 6px;font-weight:600}
+.kt span{font-size:8.5px;background:#FBF3EA;color:#B5876A;border-radius:6px;padding:2px 6px;font-weight:600;cursor:pointer;transition:.15s}
+.kt span:active{transform:scale(.93)}
 .em{text-align:center;padding:44px 0;color:#E0C9B4}
 .note{background:#FFF3D9;border:1.5px solid #FFE1A8;border-radius:14px;padding:10px 12px;font-size:10px;color:#9A6B2C;line-height:1.7;margin-bottom:11px}
 .ft{text-align:center;font-size:9.5px;color:#D6B49C;margin-top:16px;line-height:1.9}
@@ -149,6 +150,11 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .cpc-code{font-size:19px;font-weight:900;color:#C2410C;letter-spacing:1.5px;font-family:ui-monospace,Menlo,monospace}
 .cpc-tag{font-size:8.5px;font-weight:800;color:#fff;background:#E0895A;border-radius:6px;padding:3px 7px;white-space:nowrap}
 .cpc-s{font-size:9.5px;color:#A87A56;font-weight:600;margin-top:3px}
+.sdrop{display:none;position:relative;z-index:20;background:#fff;border:1.5px solid #EADFD3;border-radius:14px;margin:8px 14px 0;padding:12px 13px;box-shadow:0 6px 18px rgba(150,110,70,.13)}
+.sdrop-hint{font-size:11px;color:#B5A695;margin-bottom:9px}
+.sdrop-tags{display:flex;flex-wrap:wrap;gap:7px;max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.tgf{background:#FBF3EA;color:#B5876A;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+.tgf:active{transform:scale(.93)}
 .wmk{font-size:7.5px;color:#C9A98F;opacity:.42;letter-spacing:.4px;margin-top:7px;font-weight:600;user-select:none;pointer-events:none}
 .wmk-c{text-align:center;margin:10px 0 0;opacity:.62;font-size:10px}
 .warnlabel{font-size:9px;font-weight:700;color:#E0755A;background:#FFF0EC;border-radius:5px;padding:2px 5px;letter-spacing:.2px}
@@ -246,11 +252,11 @@ body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;backgroun
 .brand-footer .bf-sub{font-size:10px;color:#DDC1A8;margin-top:4px}
 .ver{font-size:8px;opacity:.45;margin-left:5px;letter-spacing:.3px}
 </style></head><body>
-<div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・出版社…" oninput="S(this.value)"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
+<div class="hd"><div class="hdt"><div><div class="ttl">📚 1000本計畫<a class="hdbrand" href="https://www.instagram.com/senbei.store/" target="_blank"><span>SENBEI</span><span>STORE</span></a></div><div class="sub">0–10歲打底最關鍵・一路陪讀到18歲</div></div><div class="cn"><b id="dn">0</b><i> 本</i><div class="cnl">已收藏</div></div></div><div class="sw"><span class="si">🔍</span><input id="q" placeholder="搜尋書名・作者・分類標籤…" oninput="S(this.value)" onfocus="SF()"><button class="cbx" id="cbx" onclick="C()">✕</button></div><div class="sdrop" id="sdrop"></div><div class="tw"><div class="tabs" id="tabs"></div></div></div>
 <div class="wrap" id="main"></div>
 <div class="saybox"><button class="saybtn" onclick="openSay()">📩 跟仙貝媽說<em>意見・想看的書・哪裡怪怪的</em></button></div>
 <div class="prog"><div class="prog-t">📚 1000本計畫</div><div class="prog-bar"><div class="prog-fill" style="width:83.1%"></div></div><div class="prog-n">目前 <b>831</b> / 1000　差一點點！</div></div>
-<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v90</span></div></a>
+<a class="brand-footer" href="https://www.instagram.com/senbei.store/" target="_blank"><div class="bf-line"></div><div class="bf-emoji">🍘</div><div class="bf-text">仙貝童裝伴你育兒路</div><div class="bf-sub">@senbei.store ↗<span class="ver">v95</span></div></a>
 <button class="topfab" id="topfab" onclick="scrollTop()" style="display:none">↑</button>
 <div class="rpmask" id="saymask" onclick="if(event.target===this)closeSay()"><div class="rpbox"><div class="rphd"><b>📩 跟仙貝媽說</b><button class="rpclose" onclick="closeSay()">✕</button></div><div id="saybody"></div></div></div>
 <div class="rpmask" id="rpmask" onclick="if(event.target===this)closeReport()"><div class="rpbox"><div class="rphd"><b>❗ 回報錯誤</b><button class="rpclose" onclick="closeReport()">✕</button></div><div id="rpbody"></div></div></div>
@@ -272,7 +278,7 @@ const T={
 "讀者推薦":{e:"💌",c:"#B08FD4",bg:"#F6F1FC",p:"#E4D4F7",d:"大家的書單"}};
 const AG=Object.keys(BOOKS);
 const G=[...AG,"讀者推薦"];
-let g=AG[0], ty="s", q="", D=new Set(), sr=true, tagFilter=null;
+let g=AG[0], ty="s", q="", D=new Set(), sr=true;
 try{const v=localStorage.getItem("sb_showreco"); if(v==="0") sr=false;}catch(e){}
 AG.forEach(k=>{BOOKS[k].s.forEach((b,i)=>b.id=k+"|s|"+i);BOOKS[k].o.forEach((b,i)=>b.id=k+"|o|"+i)});
 const FLAT=AG.flatMap(k=>[...BOOKS[k].s.map(b=>({...b,g:k,ty:"s"})),...BOOKS[k].o.map(b=>({...b,g:k,ty:"o"}))]);
@@ -839,16 +845,42 @@ function tabs(){
   }).join("");
   const a=document.querySelector(".tab.on"); if(a)a.scrollIntoView({inline:"center",behavior:"smooth"});
 }
-function TAGFILTER(k){
-  tagFilter = (tagFilter===k) ? null : k;
-  q=""; document.getElementById("q").value="";
-  document.getElementById("cbx").style.display="none";
-  R(); window.scrollTo(0,0);
-}
-function GO(k){g=k;q="";tagFilter=null;document.getElementById("q").value="";document.getElementById("cbx").style.display="none";R();window.scrollTo(0,0);if(k==="讀者推薦"&&RECS===null)loadRecs()}
+function GO(k){g=k;q="";document.getElementById("q").value="";document.getElementById("cbx").style.display="none";R();window.scrollTo(0,0);if(k==="讀者推薦"&&RECS===null)loadRecs()}
 function TY(x){ty=x;R();window.scrollTo(0,0)}
 function TG(id){D.has(id)?D.delete(id):D.add(id);save();R()}
-function S(v){q=v.trim();document.getElementById("cbx").style.display=v?"block":"none";R()}
+function S(v){
+  q=v.trim();
+  document.getElementById("cbx").style.display=v?"block":"none";
+  paintDrop();
+  R();
+}
+function SF(){
+  document.getElementById("sdrop").style.display="block";
+  paintDrop();
+}
+// 點頁面其他地方時收起下拉——用 mousedown 而不是 click，
+// 這樣點下拉裡的標籤時，收起的時機不會搶在標籤的 onclick 前面觸發
+document.addEventListener("mousedown", function(e){
+  const box=document.getElementById("sdrop"), inp=document.getElementById("q");
+  if(!box || !inp) return;
+  if(e.target!==inp && !box.contains(e.target)) box.style.display="none";
+});
+function paintDrop(){
+  const box=document.getElementById("sdrop");
+  if(!box) return;
+  const opts=TAGOPTS[g]||[];
+  box.innerHTML = '<div class="sdrop-hint">輸入書名・作者・分類標籤</div>'
+    + (opts.length ? '<div class="sdrop-tags">'+opts.map(function(k){
+        return '<button class="tgf" onclick="TAGFILTER(\''+k+'\')">'+k+'</button>';
+      }).join('')+'</div>' : '');
+}
+function TAGFILTER(k){
+  q=k;
+  document.getElementById("q").value=k;
+  document.getElementById("cbx").style.display="block";
+  document.getElementById("sdrop").style.display="none";
+  R(); window.scrollTo(0,0);
+}
 function C(){q="";document.getElementById("q").value="";document.getElementById("cbx").style.display="none";R()}
 function HD(){sr=!sr;try{localStorage.setItem("sb_showreco",sr?"1":"0")}catch(e){}R()}
 
@@ -1089,23 +1121,15 @@ function R(){
   const t=T[g];
   m.style.setProperty("--c",t.c);m.style.setProperty("--bg",t.bg);m.style.setProperty("--p",t.p);
   document.getElementById("dn").textContent=D.size;
-  let list=q?FLAT.filter(b=>b.t.includes(q)||b.a.includes(q)||b.d.includes(q)||(b.p&&b.p.includes(q))):BOOKS[g][ty].slice();
-  if(!q && tagFilter) list=list.filter(b=>b.k.includes(tagFilter));
+  let list=q?FLAT.filter(b=>b.t.includes(q)||b.a.includes(q)||b.d.includes(q)||(b.p&&b.p.includes(q))||b.k.some(k=>k.includes(q))):BOOKS[g][ty].slice();
   // 已讀的自動沉到最下面（維持原本順序）
   if(!q) list.sort((a,b)=>(D.has(a.id)?1:0)-(D.has(b.id)?1:0));
   const RC=recCountMap();
   let h="";
   if(!q){
-    if(tagFilter){
-      h+='<div class="tagactive">🏷️ 篩選：'+tagFilter+'　'+list.length+' 本　<button onclick="TAGFILTER(\''+tagFilter.replace(/'/g,"\\'")+'\')">✕ 清除</button></div>';
-    }
     h+='<div class="seg">'
       +'<button class="sg'+(ty==="s"?" on":"")+'" style="--c:'+t.c+'" onclick="TY(\'s\')">📖 故事類<em>'+BOOKS[g].s.length+' 本・繪本與讀本</em></button>'
       +'<button class="sg'+(ty==="o"?" on":"")+'" style="--c:'+t.c+'" onclick="TY(\'o\')">'+t.oe+" "+t.o+'<em>'+BOOKS[g].o.length+" 本・"+t.od+'</em></button></div>';
-    if(TAGOPTS[g] && TAGOPTS[g].length){
-      h+='<div class="tagbar">'+TAGOPTS[g].map(k=>
-        '<button class="tgf'+(tagFilter===k?" on":"")+'" onclick="TAGFILTER(\''+k+'\')">'+k+'</button>').join('')+'</div>';
-    }
     const tot=totOf(g);
     if(tot<50) h+='<div class="note">⚠️ 這個年齡層目前 '+tot+' 本，未滿 50。只放確定存在的書，寧可少也不亂湊。歡迎在「讀者推薦」補充！</div>';
     h+='<div class="bar"><span class="e">'+(ty==="s"?t.e:t.oe)+'</span><span class="n">'+g+" "+(ty==="s"?"故事類":t.o)+'</span><span class="d">'+t.d+'</span><span class="c">'+BOOKS[g][ty].filter(b=>D.has(b.id)).length+" / "+BOOKS[g][ty].length+'</span></div>';
@@ -1157,7 +1181,7 @@ function R(){
       +'<div class="bt">'+b.t+(b.b?'<span class="bg-">'+b.b+"</span>":"")+"</div>"
       +'<div class="ba">'+b.a+(b.p&&b.p!=="—"?' <span class="pub">・'+b.p+"</span>":"")+"</div>"
       +'<div class="bx">'+b.d+"</div>"
-      +'<div class="cardfoot"><div class="kt">'+b.k.map(k=>'<span class="tgc'+(k===tagFilter?" on":"")+'" onclick="event.stopPropagation();TAGFILTER(\''+k+'\')">'+k+'</span>').join("")+'</div>'
+      +'<div class="cardfoot"><div class="kt">'+b.k.map(k=>'<span class="tgc" onclick="event.stopPropagation();TAGFILTER(\''+k+'\')">'+k+'</span>').join("")+'</div>'
       +'<button class="wishbtn'+(inWish(b.t)?" on":"")+'" onclick="toggleWish(\''+b.t.replace(/'/g,"\\'")+'\',\''+(b.a||"").replace(/'/g,"\\'")+'\',\''+(b.p||"").replace(/'/g,"\\'")+'\')">'+(inWish(b.t)?'📖':'📖')+'</button>'
       +'<button class="likebtn'+(liked?" liked":"")+(rc?"":" zero")+'" onclick="likeBook(\''+b.t.replace(/'/g,"\\'")+'\',\''+(b.g||g)+'\',\'\')">'+(liked?'❤️':'👍')+' '+(rc||'推薦')+'</button>'
       +'<button class="rpbtn" title="回報錯誤" onclick="openReport(\''+b.t.replace(/'/g,"\\'")+'\',\''+(b.a||"").replace(/'/g,"\\'")+'\',\''+(b.p||"").replace(/'/g,"\\'")+'\',\''+(b.g||g)+'\')">❗</button>'
