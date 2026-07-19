@@ -48,6 +48,14 @@ h1{font-size:17px;margin:0 0 3px;display:flex;align-items:center;gap:6px}
 .sw i{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .sw.on i{left:24px}
 .cfg-prevlbl{font-size:10px;color:#B5A695;margin-top:9px;margin-bottom:3px}
+#cpfields{margin-top:10px}
+.cprow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cplbl{font-size:12.5px;color:#6B5B4F;flex-shrink:0}
+.cpunit{font-size:12px;color:#9B8B7A;flex-shrink:0}
+.cpin{flex:1;min-width:0;border:1.5px solid #EADFD3;border-radius:9px;padding:9px 10px;font-size:14px;font-family:inherit;color:#4A3B2F;background:#fff}
+.cpin:focus{outline:none;border-color:#F0A868}
+.cpin.wide{flex:none;width:100%;letter-spacing:.5px}
+#cpfields.off{opacity:.45;pointer-events:none}
 .cfg-prev{border-radius:11px;padding:9px 11px;text-align:center;font-size:11px;line-height:1.6}
 .cfg-prev.cp{background:linear-gradient(135deg,#FFF0DC,#FFE4C4);border:1.5px dashed #E8A96F;color:#8A6540}
 .cfg-prev.ig{background:linear-gradient(135deg,#FDEEF2,#FBE0E8);border:1.5px dashed #E8A0B8;color:#A0566F}
@@ -106,9 +114,16 @@ h1{font-size:17px;margin:0 0 3px;display:flex;align-items:center;gap:6px}
         <div class="cfg-txt" id="cfgtxt">讀取中…</div>
         <button class="sw" id="sw" onclick="toggleCoupon()"><i></i></button>
       </div>
+      <div class="cfg-warn" id="cpwarn" style="display:none"></div>
+      <div id="cpfields">
+        <div class="cprow"><span class="cplbl">滿</span><input id="cpamt" class="cpin" type="number" inputmode="numeric" placeholder="599" oninput="updatePrev()"><span class="cplbl">折</span><input id="cpdisc" class="cpin" type="number" inputmode="numeric" placeholder="30" oninput="updatePrev()"><span class="cpunit">元</span></div>
+        <div class="cprow"><span class="cplbl">折價碼</span><input id="cpcode" class="cpin wide" type="text" autocapitalize="characters" placeholder="SENBEI" oninput="updatePrev()"></div>
+        <div class="cprow"><span class="cplbl">檔期</span><input id="cpstart" class="cpin" type="date" oninput="updatePrev()"><span class="cplbl">～</span><input id="cpend" class="cpin" type="date" oninput="updatePrev()"></div>
+      </div>
       <div class="cfg-prevlbl">客人會看到：</div>
       <div class="cfg-prev" id="cfgprev"></div>
-      <div class="cfg-note">按下開關會直接送出設定，<b>全站約 5 分鐘後生效</b>，不用上傳任何檔案。<br>客人收藏的舊網址也一樣會跟著變。</div>
+      <button class="btn" id="cpsave" style="width:100%;margin-top:10px" onclick="saveCoupon()">💾 儲存設定</button>
+      <div class="cfg-note">按<b>儲存</b>後全站約 5 分鐘生效，不用上傳檔案。<br>過了「檔期」結束日，客人那邊會自動改成邀請追蹤 IG。實際發券與折抵仍以 iOPEN Mall 後台設定為準。</div>
     </div>
     <div class="tabs" id="tabs"></div>
     <div class="bar">
@@ -158,33 +173,80 @@ function postForm(fields){
   setTimeout(function(){ document.body.removeChild(f); }, 800);
 }
 
-function paintCfg(){
-  const sw = document.getElementById("sw");
-  if (sw) sw.className = "sw" + (COUPON ? " on" : "");
-  document.getElementById("cfgtxt").innerHTML = COUPON
-    ? '目前<b>發放中</b>：清單底下顯示每週折價碼，點了到賣場'
-    : '目前<b>不發放</b>：改成邀請追蹤 IG，點了到 @senbei.store';
-  document.getElementById("cfgprev").className = "cfg-prev " + (COUPON ? "cp" : "ig");
-  document.getElementById("cfgprev").innerHTML = COUPON
-    ? '<b>🎁 讀者專屬童裝折價券</b>SEN-03　點一下到賣場 ↗<br>滿 399 折 20'
-    : '<b>❤️ 歡迎追蹤我們！不定時分享免費小工具</b>@SENBEI.STORE　點一下到 IG ↗<br>伴你育兒路';
+function fmtMD(ymd){ const p=String(ymd||"").split("-"); return p.length<3?"":(parseInt(p[1],10)+"/"+parseInt(p[2],10)); }
+function todayYMD(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function ymdToDate(s){ const p=String(s).split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+function daysBetween(a,b){ return Math.round((ymdToDate(b)-ymdToDate(a))/86400000); }
+function renderWarn(){
+  const w=document.getElementById("cpwarn");
+  if(!w) return;
+  const v=couponVals();
+  if(!COUPON || !v.end){ w.style.display="none"; return; }
+  const today=todayYMD();
+  if(today > v.end){
+    w.style.display="";
+    w.innerHTML='<b>⚠️ 檔期已結束（'+fmtMD(v.end)+'）</b>券已自動停發、客人端改顯示 IG。記得更新檔期，或把折價券關掉。';
+  }else{
+    const d=daysBetween(today, v.end);
+    if(d<=3){
+      w.style.display="";
+      w.innerHTML='⏰ 檔期 <b>'+fmtMD(v.end)+'</b> 到期，'+(d<=0?'<b>今天最後一天</b>':'剩 <b>'+d+'</b> 天')+'。';
+    }else{
+      w.style.display="none";
+    }
+  }
 }
+function couponVals(){
+  const g=id=>{ const el=document.getElementById(id); return (el&&el.value||"").trim(); };
+  return { amt:g("cpamt"), disc:g("cpdisc"), code:g("cpcode"), start:g("cpstart"), end:g("cpend") };
+}
+function updatePrev(){
+  const prev=document.getElementById("cfgprev");
+  if(!prev) return;
+  if(COUPON){
+    const v=couponVals();
+    prev.className="cfg-prev cp";
+    prev.innerHTML='<b>🎁 讀者專屬童裝折價券</b>'+(v.code||"SENBEI")+'　點一下到賣場 ↗<br>滿 '+(v.amt||"—")+' 折 '+(v.disc||"—")+(v.end?'・'+fmtMD(v.end)+' 前使用':'');
+  }else{
+    prev.className="cfg-prev ig";
+    prev.innerHTML='<b>❤️ 歡迎追蹤我們！不定時分享免費小工具</b>@SENBEI.STORE　點一下到 IG ↗<br>伴你育兒路';
+  }
+  renderWarn();
+}
+function paintCfg(){
+  const sw=document.getElementById("sw");
+  if(sw) sw.className="sw"+(COUPON?" on":"");
+  const t=document.getElementById("cfgtxt");
+  if(t) t.innerHTML = COUPON ? '折價券<b>發放中</b>' : '折價券<b>不發放</b>（改邀請追蹤 IG）';
+  const f=document.getElementById("cpfields");
+  if(f) f.className = COUPON ? "" : "off";
+  updatePrev();
+}
+function toggleCoupon(){ COUPON=!COUPON; paintCfg(); }
 
-function toggleCoupon(){
-  COUPON = !COUPON;
-  const sw = document.getElementById("sw");
-  if (sw) sw.disabled = true;
+function saveCoupon(){
+  const btn=document.getElementById("cpsave");
+  let reason="coupon:off";
+  if(COUPON){
+    const v=couponVals();
+    if(!v.amt || !v.disc){ alert("請填「滿」和「折」的金額"); return; }
+    if(!v.end){ alert("請設定檔期的結束日"); return; }
+    if(v.start && v.end && v.start > v.end){ alert("結束日不能早於起始日"); return; }
+    reason="coupon:on;amt="+v.amt+";disc="+v.disc+";code="+(v.code||"SENBEI")+";start="+v.start+";end="+v.end;
+  }
+  if(btn){ btn.disabled=true; btn.textContent="送出中…"; }
   postForm({
     [FORM_ENTRY.title]: CFG_KEY,
     [FORM_ENTRY.author]: "",
     [FORM_ENTRY.publisher]: "",
     [FORM_ENTRY.url]: "",
-    [FORM_ENTRY.reason]: COUPON ? "coupon:on" : "coupon:off",
+    [FORM_ENTRY.reason]: reason,
     [FORM_ENTRY.age]: ""
   });
-  paintCfg();
-  document.getElementById("cfgtxt").innerHTML += '　<span style="color:#5CA86B;font-size:11px">✓ 已送出</span>';
-  setTimeout(function(){ if (sw) sw.disabled = false; paintCfg(); }, 1200);
+  setTimeout(function(){
+    if(btn){ btn.disabled=false; btn.textContent="✓ 已儲存（約 5 分鐘生效）";
+      setTimeout(function(){ btn.textContent="💾 儲存設定"; }, 2600); }
+  }, 1000);
 }
 
 try { const s = localStorage.getItem("sb_admin_hide"); if (s) HIDE = new Set(JSON.parse(s)); } catch(e) {}
@@ -245,7 +307,14 @@ async function load(){
     }));
     // 設定列取最新的一筆，且不要出現在下面的清單裡
     const cfg = all.filter(r => r.title === CFG_KEY);
-    if (cfg.length) COUPON = !/coupon\s*[:=]\s*off/i.test(String(cfg[cfg.length-1].reason || ""));
+    if (cfg.length) {
+      const rs = String(cfg[cfg.length-1].reason || "");
+      COUPON = !/coupon\s*[:=]\s*off/i.test(rs);
+      const gv = k => { const m = rs.match(new RegExp(k + "\\s*[:=]\\s*([^;；]+)")); return m ? m[1].trim() : ""; };
+      const set = (id,val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+      set("cpamt",gv("amt")); set("cpdisc",gv("disc")); set("cpcode",gv("code"));
+      set("cpstart",gv("start")); set("cpend",gv("end"));
+    }
     paintCfg();
     ROWS = all.filter(r => r.title !== CFG_KEY).reverse();
     paint();
